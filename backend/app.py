@@ -86,6 +86,7 @@ def create_app(database=None):
         return {
             "application": "tillskottsvattenvardering",
             "version": VERSION,
+            "application_version": (ROOT / "VERSION").read_text(encoding="utf-8").strip(),
             "database": "SQLite",
             "method": "lokal-1",
             "excel_verified": False,
@@ -103,6 +104,15 @@ def create_app(database=None):
     @app.get("/api/template")
     def template(example: bool = False):
         return example_project() if example else blank_project()
+
+    @app.post("/api/validate")
+    def review(data: dict):
+        # Reuse calculation validation without saving a revision or starting a run.
+        try:
+            validate(data)
+        except InputError as error:
+            return {"valid": False, "errors": error.errors, "fields": error.fields}
+        return {"valid": True, "errors": [], "fields": []}
 
     @app.get("/api/projects")
     def projects():

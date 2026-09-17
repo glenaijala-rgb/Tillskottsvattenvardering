@@ -1,0 +1,112 @@
+// Run against a separate TSV_DATABASE on port 8766. Never use the user's database.
+// Requires Playwright and installed Microsoft Edge; see docs/VERSION_0.2.md.
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const out = path.resolve('analysis/ui02');
+fs.mkdirSync(out, {recursive:true});
+(async()=>{
+  const browser=await chromium.launch({channel:'msedge',headless:true});
+  try {
+    const page=await browser.newPage({viewport:{width:1440,height:1000}});
+    const errors=[]; page.on('pageerror',e=>{errors.push(e.message); console.error('BROWSER:',e.message);});
+    page.on('dialog',d=>d.accept());
+    await page.goto('http://127.0.0.1:8766');
+    const step=name=>page.getByRole('navigation',{name:'Projektets delar'}).getByRole('button',{name:new RegExp(name)});
+    const group=name=>page.getByRole('navigation',{name:'Delar i aktuellt steg'}).getByRole('button',{name:new RegExp('^'+name)});
+    const field=(key,name)=>page.locator(`[data-field-path="${key}"]`).getByRole('textbox',{name,exact:true});
+    await page.getByRole('button',{name:'Mina projekt',exact:true}).click();
+    await page.getByRole('button',{name:'Öppna syntetiskt typfall',exact:true}).click();
+    await page.getByRole('heading',{name:'Projekt och förutsättningar',exact:true}).waitFor();
+    await page.getByRole('textbox',{name:'Projektnamn',exact:true}).fill('UI 0.2 – isolerat test');
+    await page.getByRole('button',{name:'Nästa: Nuläge →',exact:true}).click();
+    await page.getByRole('heading',{name:'Volymer',exact:true}).waitFor();
+    assert.equal(await page.getByRole('heading',{name:'Rening',exact:true}).count(),0);
+    assert.equal(await page.getByRole('textbox',{name:'Volym tillskottsvatten, min',exact:true}).count(),0);
+    await page.getByRole('checkbox',{name:'Ange ett osäkerhetsintervall',exact:true}).check();
+    await page.getByRole('textbox',{name:'Volym tillskottsvatten, min',exact:true}).fill('900');
+    await page.getByRole('textbox',{name:'Volym tillskottsvatten, max',exact:true}).fill('1100');
+    await group('Pumpning').click(); await group('Volymer').click();
+    assert.equal(await page.getByRole('textbox',{name:'Volym tillskottsvatten, min',exact:true}).inputValue(),'900');
+    await page.screenshot({path:path.join(out,'nulage.png'),fullPage:true});
+    // Back to fixed input without silently dropping interval endpoints.
+    await page.getByRole('textbox',{name:'Volym tillskottsvatten, min',exact:true}).fill('');
+    await page.getByRole('textbox',{name:'Volym tillskottsvatten, max',exact:true}).fill('');
+    await step('Åtgärder').click();
+    assert.equal(await page.getByRole('textbox',{name:'Snabb regnpåverkan',exact:true}).getAttribute('readonly'),'');
+    await group('Effekter').click();
+    await field('alternatives.0.params.volume_reduction','Minskning tillskottsvatten, mest troligt').fill('2000');
+    assert.ok((await page.locator('.field-error').allTextContents()).some(t=>t.includes('Det går inte att ta bort mer')));
+    await step('Granska').click();
+    await page.locator('.review-issues button').first().waitFor();
+    assert.equal(await page.getByRole('button',{name:'Beräkna och visa resultat →',exact:true}).isEnabled(),false);
+    await page.locator('.review-issues button').first().click();
+    await page.getByRole('heading',{name:'Effekter',exact:true}).waitFor();
+    await field('alternatives.0.params.volume_reduction','Minskning tillskottsvatten, mest troligt').fill('100');
+    await step('Granska').click();
+    await page.locator('.review-ok').waitFor();
+    await page.screenshot({path:path.join(out,'granska.png'),fullPage:true});
+    await page.getByRole('button',{name:'Beräkna och visa resultat →',exact:true}).click();
+    await page.getByRole('heading',{name:'Vad visar jämförelsen?',exact:true}).waitFor();
+    assert.ok(await page.locator('.result-cards article').count()>0);
+    assert.equal(await page.locator('.result-details[open]').count(),0);
+    const originalSummary=await page.locator('.result-cards').innerText();
+    const oldRun=await page.getByRole('combobox',{name:'Sparad körning',exact:true}).inputValue();
+    await page.screenshot({path:path.join(out,'resultat.png'),fullPage:true});
+    // Printing expands the report, then restores collapsed sections.
+    await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')));
+    assert.equal(await page.locator('.report details:not([open])').count(),0);
+    await page.pdf({path:path.join(out,'resultat.pdf'),format:'A4',printBackground:true});
+    await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
+    assert.equal(await page.locator('.result-details[open]').count(),0);
+    // Edit, recalculate, select old immutable run and verify stale indication.
+    await step('Nuläge').click(); await group('Volymer').click();
+    await page.getByRole('textbox',{name:'Volym tillskottsvatten, mest troligt',exact:true}).fill('1200');
+    await step('Resultat').click();
+    await page.getByText('Indata har ändrats sedan denna beräkning.',{exact:false}).waitFor();
+    assert.equal(await page.locator('.result-cards').innerText(),originalSummary);
+    await step('Granska').click(); await page.locator('.review-ok').waitFor();
+    await page.getByRole('button',{name:'Beräkna och visa resultat →',exact:true}).click();
+    await page.getByRole('heading',{name:'Vad visar jämförelsen?',exact:true}).waitFor();
+    await page.getByRole('combobox',{name:'Sparad körning',exact:true}).selectOption(oldRun);
+    await page.getByText('Indata har ändrats sedan denna beräkning.',{exact:false}).waitFor();
+    assert.equal(await page.locator('.result-cards').innerText(),originalSummary);
+    // Saved project reload and compact viewport.
+    await page.reload(); await page.getByRole('button',{name:'Mina projekt',exact:true}).click();
+    await page.locator('.project-list button').filter({hasText:'UI 0.2 – isolerat test'}).first().click();
+    await step('Nuläge').click();
+    assert.equal(await page.getByRole('textbox',{name:'Volym tillskottsvatten, mest troligt',exact:true}).inputValue(),'1200');
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({path:path.join(out,'mobil.png'),fullPage:true});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false);
+    // Blank project has existing uncertain start values visible and excluded groups preserved.
+    await page.getByRole('button',{name:'Mina projekt',exact:true}).click();
+    await page.getByRole('button',{name:'+ Nytt projekt',exact:true}).click();
+    await step('Nuläge').click(); await group('Rening').click();
+    assert.ok(await page.getByRole('textbox',{name:'Rening – kommunens utgift, min',exact:true}).isVisible());
+    assert.ok(await page.getByText('Startvärde från Göteborgsexemplet · kontrollera att det passar området.',{exact:true}).count()>0);
+    await page.getByRole('checkbox',{name:'Rening: Inte aktuellt',exact:true}).check();
+    await group('Volymer').click(); await group('Rening').click();
+    assert.ok(await page.getByRole('checkbox',{name:'Rening: Inte aktuellt',exact:true}).isChecked());
+    await page.setViewportSize({width:1440,height:1000});
+    await step('Åtgärder').click(); await group('Byggnation').click();
+    await page.getByRole('button',{name:'Öppna stöd för Klimatpåverkan anläggning',exact:true}).click();
+    await page.getByRole('textbox',{name:'Längd med schakt, mest troligt',exact:true}).fill('10');
+    await page.getByRole('button',{name:'Beräkna stödvärde',exact:true}).click();
+    await page.getByRole('button',{name:'Använd i åtgärden',exact:true}).click();
+    const climate=field('alternatives.0.params.construction_co2','Total klimatpåverkan anläggning, mest troligt');
+    const climateValue=await climate.inputValue();
+    assert.ok(Number(climateValue.replace(/\s/g,'').replace(',','.'))>0);
+    assert.ok(await page.getByText('Kopplat till beräkningsstöd. Manuell ändring av värdena bryter kopplingen.',{exact:true}).isVisible());
+    await group('Effekter').click(); await group('Byggnation').click();
+    assert.equal(await climate.inputValue(),climateValue);
+    await page.getByRole('button',{name:'Öppna stöd för Klimatpåverkan anläggning',exact:true}).click();
+    assert.equal(await page.getByRole('textbox',{name:'Längd med schakt, mest troligt',exact:true}).inputValue(),'10');
+    await page.getByRole('button',{name:'Spara projekt',exact:true}).click();
+    await page.getByText('Projektet är sparat.',{exact:false}).waitFor();
+    await page.close();
+    assert.deepEqual(errors,[]);
+    console.log('PASS: navigation, intervals, direct validation, review links, calculation, history, printing, saved reload, exclusions, climate helper and 390px viewport. No browser errors.');
+  } finally {await browser.close();}
+})().catch(error=>{console.error(error);process.exit(1)});

@@ -1,5 +1,7 @@
 # Verifiering och leveransstatus
 
+Aktuell programversion: **0.2 (2026-09-18)**. Se [VERSION_0.2.md](VERSION_0.2.md) för UI-förändringar och aktuell verifiering (54 tester). Nedan bevaras tidigare metod- och verifieringsprotokoll; beräkningsmotorn är fortsatt 1.1.0.
+
 2026-09-17 • Lokal version 1.0.0 • Metodversion lokal-1
 
 ## Vad som är byggt

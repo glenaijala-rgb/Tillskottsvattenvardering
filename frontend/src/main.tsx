@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
+import "./workflow.css";
 import { help } from "./help";
 
 type P = {
@@ -83,10 +84,17 @@ const IssueContext = createContext<FieldIssue[]>([]);
 function effectIssues(project: Project | null): FieldIssue[] {
   if (!project) return [];
   const issues: FieldIssue[] = [];
-  const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+  const finite = (v: unknown): v is number =>
+    typeof v === "number" && Number.isFinite(v);
   const pairs = [
     ["volume", "volume_reduction", "tillskottsvatten", "m³/år", ""],
-    ["floods", "flood_reduction", "källaröversvämningar", "st/år", "Källaröversvämningar"],
+    [
+      "floods",
+      "flood_reduction",
+      "källaröversvämningar",
+      "st/år",
+      "Källaröversvämningar",
+    ],
     ["overflow", "overflow_reduction", "bräddning", "m³/år", "Bräddning"],
   ];
   project.alternatives.forEach((alt, index) => {
@@ -94,11 +102,22 @@ function effectIssues(project: Project | null): FieldIssue[] {
     pairs.forEach(([baseKey, key, label, unit, group]) => {
       const base = project.baseline[baseKey];
       const reduction = alt.params[key];
-      if (!base || !reduction || reduction.excluded || project.excluded_groups?.includes(group)) return;
+      if (
+        !base ||
+        !reduction ||
+        reduction.excluded ||
+        project.excluded_groups?.includes(group)
+      )
+        return;
       const limit = base.low ?? base.mode;
       const entered = reduction.high ?? reduction.mode;
-      if (!finite(limit) || !finite(entered) || limit < 0 || entered <= limit) return;
-      const uncertain = base.low != null || base.high != null || reduction.low != null || reduction.high != null;
+      if (!finite(limit) || !finite(entered) || limit < 0 || entered <= limit)
+        return;
+      const uncertain =
+        base.low != null ||
+        base.high != null ||
+        reduction.low != null ||
+        reduction.high != null;
       const message = uncertain
         ? `Minskningen av ${label} är som högst ${fmt(entered, 10)} ${unit}, men nulägets lägsta värde är bara ${fmt(limit, 10)} ${unit}. Minskningens max får inte överstiga nulägets min; annars kan simuleringen ge ett negativt antal eller en negativ volym efter åtgärden.`
         : `Du anger en minskning av ${label} med ${fmt(entered, 10)} ${unit}, men i nuläget finns bara ${fmt(limit, 10)} ${unit}. Det går inte att ta bort mer än vad som finns idag.`;
@@ -150,6 +169,7 @@ function FieldInfo({ label, helpKey }: { label: string; helpKey: string }) {
 }
 function NumberField({
   label,
+  shortLabel,
   value,
   onChange,
   unit,
@@ -160,6 +180,7 @@ function NumberField({
   grouped = !!unit?.includes("kr"),
 }: {
   label: string;
+  shortLabel?: string;
   value: number | null;
   onChange: (v: number | null) => void;
   unit?: string;
@@ -172,7 +193,9 @@ function NumberField({
   const display = (v: number | null) => {
     if (v == null) return "";
     const [integer, fraction] = String(v).split(".");
-    const whole = grouped ? integer.replace(/\B(?=(\d{3})+(?!\d))/g, " ") : integer;
+    const whole = grouped
+      ? integer.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+      : integer;
     return whole + (fraction === undefined ? "" : "," + fraction);
   };
   const [focused, setFocused] = useState(false);
@@ -183,9 +206,10 @@ function NumberField({
   return (
     <FieldValidation path={errorPath}>
       <label className="field">
-        {label}
+        {shortLabel || label}
         {unit && <span className="unit">{unit}</span>}
         <input
+          aria-label={label}
           readOnly={readOnly}
           aria-invalid={invalid || undefined}
           data-live-invalid={invalid ? "true" : undefined}
@@ -221,7 +245,11 @@ function Parameters({
   onGroupToggle,
   groupContent,
   examples = {},
+  activeGroup,
+  baseline,
 }: {
+  activeGroup?: string;
+  baseline?: Record<string, P>;
   groupContent?: (group: string) => React.ReactNode;
   examples?: Record<string, [number | null, number, number | null]>;
   excludedGroups?: string[];
@@ -232,237 +260,318 @@ function Parameters({
   values: Record<string, P>;
   onChange: (key: string, p: P) => void;
 }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   return (
     <>
-      {[...new Set(fields.map((x) => x[3]))].map((group) => (
-        <section className="card" key={group}>
-          <div className="section-title">
-            <h2>{group}</h2>
-            {onGroupToggle &&
-              [
-                "Rening",
-                "Pumpning",
-                "Källaröversvämningar",
-                "Bräddning",
-              ].includes(group) && (
-                <label className="exclude-choice">
-                  <input
-                    type="checkbox"
-                    aria-label={group + ": Inte aktuellt"}
-                    checked={excludedGroups.includes(group)}
-                    onChange={(e) => onGroupToggle(group, e.target.checked)}
-                  />
-                  Inte aktuellt
-                </label>
-              )}
-          </div>
-          {!(onGroupToggle && excludedGroups.includes(group)) && (
-            <>
-              {groupContent?.(group)}
-              <details className="field-info">
-                <summary>
-                  <span className="info-icon" aria-hidden="true">
-                    i
-                  </span>{" "}
-                  Om min, mest troligt och max
-                </summary>
-                <p>
-                  Min och max beskriver osäkerheten i uppgiften. Mest troligt är
-                  det troligaste utfallet, inte medelvärdet. Ange endast mest
-                  troligt för ett fast värde; annars krävs både min och max.
-                  Programmet använder en beta-PERT-fördelning för osäkra indata.
-                  Resultatets P50 är medianen av simuleringarna och är inte
-                  samma sak som inmatningens mest troliga värde.
-                </p>
-              </details>
-              <div className="parameter-head">
-                <span>Uppgift</span>
-                <span>Min</span>
-                <span>Mest troligt</span>
-                <span>Max</span>
-              </div>
-              {fields
-                .filter((x) => x[3] === group)
-                .map(([key, label, unit]) => {
-                  const p = values[key];
-                  const fieldSupport = support?.(key);
-                  const inherited =
-                    (key === "flood_reduction" &&
-                      excludedGroups.includes("Källaröversvämningar")) ||
-                    (key === "overflow_reduction" &&
-                      excludedGroups.includes("Bräddning"));
-                  const canExclude =
-                    !!errorScope &&
-                    [
-                      "other",
-                      "investment",
-                      "construction_co2",
-                      "traffic",
-                      "renewal",
-                      "other_cost",
-                      "other_benefit",
-                      "flood_reduction",
-                      "overflow_reduction",
-                    ].includes(key);
-                  const excluded = inherited || p.excluded === true;
-                  const choice = canExclude && (
-                    <label className="exclude-choice">
-                      <input
-                        type="checkbox"
-                        aria-label={label + ": Inte aktuellt"}
-                        checked={excluded}
-                        disabled={inherited}
-                        onChange={(e) =>
-                          onChange(key, { ...p, excluded: e.target.checked })
-                        }
-                      />
-                      {inherited ? "Inte aktuellt i nuläget" : "Inte aktuellt"}
-                    </label>
-                  );
-                  if (excluded)
-                    return (
-                      <div className="excluded-row" key={key}>
-                        <strong>{label}</strong>
-                        {choice}
-                      </div>
+      {[...new Set(fields.map((x) => x[3]))]
+        .filter((g) => !activeGroup || g === activeGroup)
+        .map((group) => (
+          <section className="card" key={group}>
+            <div className="section-title">
+              <h2>{group}</h2>
+              {onGroupToggle &&
+                [
+                  "Rening",
+                  "Pumpning",
+                  "Källaröversvämningar",
+                  "Bräddning",
+                ].includes(group) && (
+                  <label className="exclude-choice">
+                    <input
+                      type="checkbox"
+                      aria-label={group + ": Inte aktuellt"}
+                      checked={excludedGroups.includes(group)}
+                      onChange={(e) => onGroupToggle(group, e.target.checked)}
+                    />
+                    Inte aktuellt
+                  </label>
+                )}
+            </div>
+            {!(onGroupToggle && excludedGroups.includes(group)) && (
+              <>
+                {groupContent?.(group)}
+                <details className="field-info">
+                  <summary>
+                    <span className="info-icon" aria-hidden="true">
+                      i
+                    </span>{" "}
+                    Om min, mest troligt och max
+                  </summary>
+                  <p>
+                    Min och max beskriver osäkerheten i uppgiften. Mest troligt
+                    är det troligaste utfallet, inte medelvärdet. Ange endast
+                    mest troligt för ett fast värde; annars krävs både min och
+                    max. Programmet använder en beta-PERT-fördelning för osäkra
+                    indata. Resultatets P50 är medianen av simuleringarna och är
+                    inte samma sak som inmatningens mest troliga värde.
+                  </p>
+                </details>
+                {fields
+                  .filter((x) => x[3] === group)
+                  .map(([key, label, unit]) => {
+                    const p = values[key];
+                    const fieldSupport = support?.(key);
+                    const uncertain =
+                      p.low != null || p.high != null || !!expanded[key];
+                    const baselineKey = (
+                      {
+                        volume_reduction: "volume",
+                        flood_reduction: "floods",
+                        overflow_reduction: "overflow",
+                      } as Record<string, string>
+                    )[key];
+                    const current = baselineKey
+                      ? baseline?.[baselineKey]
+                      : undefined;
+                    const inherited =
+                      (key === "flood_reduction" &&
+                        excludedGroups.includes("Källaröversvämningar")) ||
+                      (key === "overflow_reduction" &&
+                        excludedGroups.includes("Bräddning"));
+                    const canExclude =
+                      !!errorScope &&
+                      [
+                        "other",
+                        "investment",
+                        "construction_co2",
+                        "traffic",
+                        "renewal",
+                        "other_cost",
+                        "other_benefit",
+                        "flood_reduction",
+                        "overflow_reduction",
+                      ].includes(key);
+                    const excluded = inherited || p.excluded === true;
+                    const choice = canExclude && (
+                      <label className="exclude-choice">
+                        <input
+                          type="checkbox"
+                          aria-label={label + ": Inte aktuellt"}
+                          checked={excluded}
+                          disabled={inherited}
+                          onChange={(e) =>
+                            onChange(key, { ...p, excluded: e.target.checked })
+                          }
+                        />
+                        {inherited
+                          ? "Inte aktuellt i nuläget"
+                          : "Inte aktuellt"}
+                      </label>
                     );
-                  return (
-                    <FieldValidation
-                      key={key}
-                      path={errorScope ? errorScope + "." + key : undefined}
-                    >
-                      <div className="parameter">
-                        {fieldSupport && (
-                          <div className="supported-heading">
-                            <strong>{label}</strong>
-                            {fieldSupport}
+                    if (excluded)
+                      return (
+                        <div className="excluded-row" key={key}>
+                          <strong>{label}</strong>
+                          {choice}
+                        </div>
+                      );
+                    return (
+                      <FieldValidation
+                        key={key}
+                        path={errorScope ? errorScope + "." + key : undefined}
+                      >
+                        <div className="parameter">
+                          {fieldSupport && (
+                            <div className="supported-heading">
+                              <strong>{label}</strong>
+                              {fieldSupport}
+                            </div>
+                          )}
+                          <div
+                            className={
+                              "parameter-row " +
+                              (uncertain ? "with-interval" : "fixed-value")
+                            }
+                          >
+                            <div>
+                              {!fieldSupport && <strong>{label}</strong>}
+                              <small>{unit}</small>
+                              {choice}
+                            </div>
+                            {(uncertain
+                              ? (["low", "mode", "high"] as const)
+                              : (["mode"] as const)
+                            ).map((k) => (
+                              <NumberField
+                                key={k}
+                                grouped={unit.includes("kr")}
+                                label={`${label}, ${{ low: "min", mode: "mest troligt", high: "max" }[k]}`}
+                                shortLabel={
+                                  {
+                                    low: "Min",
+                                    mode: "Mest troligt",
+                                    high: "Max",
+                                  }[k]
+                                }
+                                value={p[k]}
+                                onChange={(v) =>
+                                  onChange(key, {
+                                    ...p,
+                                    [k]: v,
+                                    derived: undefined,
+                                    source: p.source.startsWith(
+                                      "Beräkningshjälp:",
+                                    )
+                                      ? "Eget värde"
+                                      : p.source,
+                                    note: p.source.startsWith(
+                                      "Beräkningshjälp:",
+                                    )
+                                      ? "Manuellt ändrat; tidigare stödberäkning finns kvar som underlag."
+                                      : p.note,
+                                  })
+                                }
+                              />
+                            ))}
                           </div>
-                        )}
-                        <div className="parameter-row">
-                          <div>
-                            {!fieldSupport && <strong>{label}</strong>}
-                            <small>{unit}</small>
-                            {choice}
-                          </div>
-                          {(["low", "mode", "high"] as const).map((k) => (
-                            <NumberField
-                              key={k}
-                              grouped={unit.includes("kr")}
-                              label={`${label}, ${{ low: "min", mode: "mest troligt", high: "max" }[k]}`}
-                              value={p[k]}
-                              onChange={(v) =>
-                                onChange(key, {
-                                  ...p,
-                                  [k]: v,
-                                  derived: undefined,
-                                  source: p.source.startsWith(
-                                    "Beräkningshjälp:",
-                                  )
-                                    ? "Eget värde"
-                                    : p.source,
-                                  note: p.source.startsWith("Beräkningshjälp:")
-                                    ? "Manuellt ändrat; tidigare stödberäkning finns kvar som underlag."
-                                    : p.note,
+                          <label className="check uncertainty-choice">
+                            <input
+                              type="checkbox"
+                              checked={uncertain}
+                              disabled={p.low != null || p.high != null}
+                              onChange={(e) =>
+                                setExpanded({
+                                  ...expanded,
+                                  [key]: e.target.checked,
                                 })
                               }
                             />
-                          ))}
-                        </div>
-                        {help[key] && (
-                          <div className="field-help">
-                            <p>{help[key][0]}</p>
-                          </div>
-                        )}
-                        {key === "arv_ground" && (
-                          <p className="notice">
-                            Marginalvärdena ska inte användas vid stora
-                            flödesförändringar, exempelvis när allt
-                            tillskottsvatten tas bort. ARV-metoden är ännu inte
-                            slutligt granskad.
-                          </p>
-                        )}
-                        <details className="field-info">
-                          <summary aria-label={"Information om " + label}>
-                            <span className="info-icon" aria-hidden="true">
-                              i
-                            </span>{" "}
-                            Information
-                          </summary>
-                          {help[key] && (
-                            <>
-                              <p>{help[key][1]}</p>
-                              {unit.startsWith("kr") && (
-                                <p>
-                                  Ange värdet av faktisk resursåtgång utan moms,
-                                  inflation, avskrivningar och låneränta. Ta med
-                                  kostnaden oavsett vem i samhället som bär den
-                                  och undvik dubbelräkning.
-                                </p>
-                              )}
-                              <small>
-                                Bearbetat från grundfilens Vägledning.
-                              </small>
-                            </>
+                            Ange ett osäkerhetsintervall
+                          </label>
+                          {uncertain && (
+                            <small className="interval-note">
+                              För ett fast värde: töm både min och max.
+                              Uppgifterna tas aldrig bort när du byter vy.
+                            </small>
                           )}
-                          {examples[key] && (
-                            <div className="example-info">
-                              <h4>Startvärde från Göteborgsexemplet</h4>
-                              <p>
-                                Min:{" "}
-                                {examples[key][0] === null
-                                  ? "–"
-                                  : fmt(examples[key][0], 5)}{" "}
-                                · Mest troligt: {fmt(examples[key][1], 5)} ·
-                                Max:{" "}
-                                {examples[key][2] === null
-                                  ? "–"
-                                  : fmt(examples[key][2], 5)}{" "}
-                                {unit}.
+                          {current && (
+                            <p className="baseline-reference">
+                              Nuläge:{" "}
+                              {current.mode == null
+                                ? "uppgift saknas"
+                                : `${fmt(current.mode, 3)} ${unit} (mest troligt)`}
+                              {current.low != null &&
+                                ` · Min ${fmt(current.low, 3)} ${unit}`}
+                              . Minskningen får inte överstiga nuläget.
+                            </p>
+                          )}
+                          {p.derived && (
+                            <p className="source-label">
+                              Kopplat till beräkningsstöd. Manuell ändring av
+                              värdena bryter kopplingen.
+                            </p>
+                          )}
+                          {p.source && (
+                            <p className="source-label">Källa: {p.source}</p>
+                          )}
+                          {examples[key] &&
+                            [p.low, p.mode, p.high].every(
+                              (v, i) => v === examples[key][i],
+                            ) && (
+                              <p className="source-label">
+                                Startvärde från Göteborgsexemplet · kontrollera
+                                att det passar området.
                               </p>
-                              <p>
-                                Källa: TSV KNA.xlsb, blad Nuläge,
-                                exempelkolumner G–I, rad{" "}
-                                {fields.find((f) => f[0] === key)?.[4]}.
-                                Historiska exempel, inte aktuella
-                                rekommendationer. Kontrollera att de passar ditt
-                                område.
-                              </p>
-                              <p>
-                                {[p.low, p.mode, p.high].every(
-                                  (value, i) => value === examples[key][i],
-                                )
-                                  ? "Fältets värden överensstämmer med Göteborgsexemplet."
-                                  : "Fältets värden skiljer sig från Göteborgsexemplet."}
-                              </p>
+                            )}
+                          {help[key] && (
+                            <div className="field-help">
+                              <p>{help[key][0]}</p>
                             </div>
                           )}
-                          <label className="field">
-                            Källa
-                            <input
-                              value={p.source}
-                              onChange={(e) =>
-                                onChange(key, { ...p, source: e.target.value })
-                              }
-                            />
-                          </label>
-                          <label className="field">
-                            Kommentar
-                            <input
-                              value={p.note}
-                              onChange={(e) =>
-                                onChange(key, { ...p, note: e.target.value })
-                              }
-                            />
-                          </label>
-                        </details>
-                      </div>
-                    </FieldValidation>
-                  );
-                })}
-            </>
-          )}
-        </section>
-      ))}
+                          {key === "arv_ground" && (
+                            <p className="notice">
+                              Marginalvärdena ska inte användas vid stora
+                              flödesförändringar, exempelvis när allt
+                              tillskottsvatten tas bort. ARV-metoden är ännu
+                              inte slutligt granskad.
+                            </p>
+                          )}
+                          <details className="field-info">
+                            <summary aria-label={"Information om " + label}>
+                              <span className="info-icon" aria-hidden="true">
+                                i
+                              </span>{" "}
+                              Information
+                            </summary>
+                            {help[key] && (
+                              <>
+                                <p>{help[key][1]}</p>
+                                {unit.startsWith("kr") && (
+                                  <p>
+                                    Ange värdet av faktisk resursåtgång utan
+                                    moms, inflation, avskrivningar och
+                                    låneränta. Ta med kostnaden oavsett vem i
+                                    samhället som bär den och undvik
+                                    dubbelräkning.
+                                  </p>
+                                )}
+                                <small>
+                                  Bearbetat från grundfilens Vägledning.
+                                </small>
+                              </>
+                            )}
+                            {examples[key] && (
+                              <div className="example-info">
+                                <h4>Startvärde från Göteborgsexemplet</h4>
+                                <p>
+                                  Min:{" "}
+                                  {examples[key][0] === null
+                                    ? "–"
+                                    : fmt(examples[key][0], 5)}{" "}
+                                  · Mest troligt: {fmt(examples[key][1], 5)} ·
+                                  Max:{" "}
+                                  {examples[key][2] === null
+                                    ? "–"
+                                    : fmt(examples[key][2], 5)}{" "}
+                                  {unit}.
+                                </p>
+                                <p>
+                                  Källa: TSV KNA.xlsb, blad Nuläge,
+                                  exempelkolumner G–I, rad{" "}
+                                  {fields.find((f) => f[0] === key)?.[4]}.
+                                  Historiska exempel, inte aktuella
+                                  rekommendationer. Kontrollera att de passar
+                                  ditt område.
+                                </p>
+                                <p>
+                                  {[p.low, p.mode, p.high].every(
+                                    (value, i) => value === examples[key][i],
+                                  )
+                                    ? "Fältets värden överensstämmer med Göteborgsexemplet."
+                                    : "Fältets värden skiljer sig från Göteborgsexemplet."}
+                                </p>
+                              </div>
+                            )}
+                            <label className="field">
+                              Källa
+                              <input
+                                value={p.source}
+                                onChange={(e) =>
+                                  onChange(key, {
+                                    ...p,
+                                    source: e.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                            <label className="field">
+                              Kommentar
+                              <input
+                                value={p.note}
+                                onChange={(e) =>
+                                  onChange(key, { ...p, note: e.target.value })
+                                }
+                              />
+                            </label>
+                          </details>
+                        </div>
+                      </FieldValidation>
+                    );
+                  })}
+              </>
+            )}
+          </section>
+        ))}
     </>
   );
 }
@@ -1284,176 +1393,221 @@ function Results({
         </div>
       )}
       <div className="notice">{r.validation_note}</div>
-      <section className="card">
-        <h2>Jämförelse med nuläget</h2>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Åtgärd</th>
-                <th>NNV P05</th>
-                <th>NNV P50</th>
-                <th>NNV P95</th>
-                <th>Annuitet P50</th>
-              </tr>
-            </thead>
-            <tbody>
-              {alts.map((a: any) => (
-                <tr key={a.id}>
-                  <th>{a.name}</th>
-                  <td>{fmt(a.npv.p05)} kr</td>
-                  <td className={a.npv.p50 >= 0 ? "positive" : "negative"}>
-                    {fmt(a.npv.p50)} kr
-                  </td>
-                  <td>{fmt(a.npv.p95)} kr</td>
-                  <td>{fmt(a.annuity.p50)} kr/år</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <section className="card result-overview">
+        <h2>Vad visar jämförelsen?</h2>
+        <p>
+          Jämfört med att behålla nuläget. Beloppen avser hela analysperioden.
+        </p>
+        <div className="result-cards">
+          {alts.map((a: any) => (
+            <article key={a.id}>
+              <h3>{a.name}</h3>
+              <strong
+                className={
+                  "result-value " + (a.npv.p50 >= 0 ? "positive" : "negative")
+                }
+              >
+                {fmt(a.npv.p50)} kr
+              </strong>
+              <p>Nettonuvärde, median (P50)</p>
+              <small>Osäkerhetsintervall (P05–P95)</small>
+              <p>
+                {fmt(a.npv.p05)} till {fmt(a.npv.p95)} kr
+              </p>
+              <p>
+                {a.npv.p05 < 0 && a.npv.p95 > 0
+                  ? "Modellens intervall omfattar både positiva och negativa utfall."
+                  : a.npv.p95 <= 0
+                    ? "Modellens intervall ligger på eller under noll."
+                    : "Modellens intervall ligger på eller över noll."}
+              </p>
+            </article>
+          ))}
         </div>
         <p>
-          Positivt nettonuvärde innebär större beräknade nyttor än kostnader.
-          P50 är medianen av simuleringarna.
+          Positivt nettonuvärde betyder att beräknade nyttor överstiger
+          kostnaderna. Utfallet beror på dina antaganden.
         </p>
-        <details>
-          <summary>Så tolkar du resultat och osäkerhet</summary>
-          <p>
-            Nettonuvärdet är diskonterade nyttor minus diskonterade kostnader,
-            jämfört med nuläget. Annuiteten omvandlar nettonuvärdet till ett
-            lika stort årligt belopp över analysperioden.
-          </p>
-          <p>
-            P05–P95 omfattar de mittersta 90 procenten av modellens simulerade
-            utfall. Det är inte en garanti för verkligheten: resultatet beror på
-            indata, antaganden och vilka effekter som ingår. Använd analysen som
-            del av en bredare bedömning.
-          </p>
-        </details>
       </section>
-      <IntervalChart
-        alts={alts}
-        metric="npv"
-        title="Nettonuvärde med osäkerhet"
-      />
-      <div className="chart-pair">
-        <IntervalChart
-          alts={alts}
-          metric="benefits"
-          title="Nuvärde av nyttor"
-        />
-        <IntervalChart
-          alts={alts}
-          metric="costs"
-          title="Nuvärde av kostnader"
-        />
-      </div>
-      <Breakdown
-        alts={alts}
-        metric="pv_benefit_categories"
-        title="Nyttornas fördelning"
-        categories={categories}
-      />
-      <Breakdown
-        alts={alts}
-        metric="pv_cost_categories"
-        title="Kostnadernas fördelning"
-        categories={categories}
-      />
-      <section className="card">
-        <h2>Årliga kostnader efter åtgärd</h2>
-        <p>Odiskonterade kr/år. Varje cell visar P05 / P50 / P95.</p>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Kategori</th>
-                <th>Nuläge</th>
-                {alts.map((a: any) => (
-                  <th key={a.id}>{a.name}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(r.baseline).map(([key, s]: any) => (
-                <tr key={key}>
-                  <th>{categories[key]}</th>
-                  {[s, ...alts.map((a: any) => a.after[key])].map(
-                    (x: any, i: number) => (
-                      <td key={i}>
-                        {fmt(x.p05)} / <b>{fmt(x.p50)}</b> / {fmt(x.p95)}
-                      </td>
-                    ),
-                  )}
+      <details className="result-details">
+        <summary>Jämförelsetabell och förklaring av osäkerhet</summary>
+        <section className="card">
+          <h2>Jämförelse med nuläget</h2>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Åtgärd</th>
+                  <th>NNV P05</th>
+                  <th>NNV P50</th>
+                  <th>NNV P95</th>
+                  <th>Annuitet P50</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      {alts.map((a: any) => (
-        <section className="card" key={a.id}>
-          <h2>{a.name} – detaljer</h2>
+              </thead>
+              <tbody>
+                {alts.map((a: any) => (
+                  <tr key={a.id}>
+                    <th>{a.name}</th>
+                    <td>{fmt(a.npv.p05)} kr</td>
+                    <td className={a.npv.p50 >= 0 ? "positive" : "negative"}>
+                      {fmt(a.npv.p50)} kr
+                    </td>
+                    <td>{fmt(a.npv.p95)} kr</td>
+                    <td>{fmt(a.annuity.p50)} kr/år</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p>
-            Andel simulerade utfall med positivt NNV:{" "}
-            {fmt(a.probability_positive * 100, 1)} %.
+            Positivt nettonuvärde innebär större beräknade nyttor än kostnader.
+            P50 är medianen av simuleringarna.
           </p>
-          {[
-            ["annual_benefits", "Årliga nyttor efter åtgärd (kr/år)"],
-            ["annual_costs", "Tillkommande årliga kostnader (kr/år)"],
-            ["construction", "Byggnation, totalt före diskontering (kr)"],
-          ].map(([key, label]) => (
-            <details key={key}>
-              <summary>{label}</summary>
+          <details>
+            <summary>Så tolkar du resultat och osäkerhet</summary>
+            <p>
+              Nettonuvärdet är diskonterade nyttor minus diskonterade kostnader,
+              jämfört med nuläget. Annuiteten omvandlar nettonuvärdet till ett
+              lika stort årligt belopp över analysperioden.
+            </p>
+            <p>
+              P05–P95 omfattar de mittersta 90 procenten av modellens simulerade
+              utfall. Det är inte en garanti för verkligheten: resultatet beror
+              på indata, antaganden och vilka effekter som ingår. Använd
+              analysen som del av en bredare bedömning.
+            </p>
+          </details>
+        </section>
+      </details>
+      <details className="result-details">
+        <summary>Vad driver resultatet? Visa diagram</summary>
+        <IntervalChart
+          alts={alts}
+          metric="npv"
+          title="Nettonuvärde med osäkerhet"
+        />
+        <div className="chart-pair">
+          <IntervalChart
+            alts={alts}
+            metric="benefits"
+            title="Nuvärde av nyttor"
+          />
+          <IntervalChart
+            alts={alts}
+            metric="costs"
+            title="Nuvärde av kostnader"
+          />
+        </div>
+        <Breakdown
+          alts={alts}
+          metric="pv_benefit_categories"
+          title="Nyttornas fördelning"
+          categories={categories}
+        />
+        <Breakdown
+          alts={alts}
+          metric="pv_cost_categories"
+          title="Kostnadernas fördelning"
+          categories={categories}
+        />
+      </details>
+      <details className="result-details">
+        <summary>Årliga kostnader och beräkningsdetaljer</summary>
+        <section className="card">
+          <h2>Årliga kostnader efter åtgärd</h2>
+          <p>Odiskonterade kr/år. Varje cell visar P05 / P50 / P95.</p>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kategori</th>
+                  <th>Nuläge</th>
+                  {alts.map((a: any) => (
+                    <th key={a.id}>{a.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(r.baseline).map(([key, s]: any) => (
+                  <tr key={key}>
+                    <th>{categories[key]}</th>
+                    {[s, ...alts.map((a: any) => a.after[key])].map(
+                      (x: any, i: number) => (
+                        <td key={i}>
+                          {fmt(x.p05)} / <b>{fmt(x.p50)}</b> / {fmt(x.p95)}
+                        </td>
+                      ),
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {alts.map((a: any) => (
+          <section className="card" key={a.id}>
+            <h2>{a.name} – detaljer</h2>
+            <p>
+              Andel simulerade utfall med positivt NNV:{" "}
+              {fmt(a.probability_positive * 100, 1)} %.
+            </p>
+            {[
+              ["annual_benefits", "Årliga nyttor efter åtgärd (kr/år)"],
+              ["annual_costs", "Tillkommande årliga kostnader (kr/år)"],
+              ["construction", "Byggnation, totalt före diskontering (kr)"],
+            ].map(([key, label]) => (
+              <details key={key}>
+                <summary>{label}</summary>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Post</th>
+                      <th>P05</th>
+                      <th>P50</th>
+                      <th>P95</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(a[key]).map(([k, s]: any) => (
+                      <tr key={k}>
+                        <td>{categories[k]}</td>
+                        <td>{fmt(s.p05)}</td>
+                        <td>{fmt(s.p50)}</td>
+                        <td>{fmt(s.p95)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            ))}
+            <details>
+              <summary>Årsvis förlopp</summary>
               <table>
                 <thead>
                   <tr>
-                    <th>Post</th>
-                    <th>P05</th>
-                    <th>P50</th>
-                    <th>P95</th>
+                    <th>År</th>
+                    <th>Nyttor P50</th>
+                    <th>Kostnader P50</th>
+                    <th>Netto P50</th>
+                    <th>Diskonterat netto P50</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(a[key]).map(([k, s]: any) => (
-                    <tr key={k}>
-                      <td>{categories[k]}</td>
-                      <td>{fmt(s.p05)}</td>
-                      <td>{fmt(s.p50)}</td>
-                      <td>{fmt(s.p95)}</td>
+                  {a.annual.map((row: any) => (
+                    <tr key={row.year}>
+                      <th>{row.year}</th>
+                      <td>{fmt(row.benefit.p50)}</td>
+                      <td>{fmt(row.cost.p50)}</td>
+                      <td>{fmt(row.net.p50)}</td>
+                      <td>{fmt(row.discounted_net.p50)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </details>
-          ))}
-          <details>
-            <summary>Årsvis förlopp</summary>
-            <table>
-              <thead>
-                <tr>
-                  <th>År</th>
-                  <th>Nyttor P50</th>
-                  <th>Kostnader P50</th>
-                  <th>Netto P50</th>
-                  <th>Diskonterat netto P50</th>
-                </tr>
-              </thead>
-              <tbody>
-                {a.annual.map((row: any) => (
-                  <tr key={row.year}>
-                    <th>{row.year}</th>
-                    <td>{fmt(row.benefit.p50)}</td>
-                    <td>{fmt(row.cost.p50)}</td>
-                    <td>{fmt(row.net.p50)}</td>
-                    <td>{fmt(row.discounted_net.p50)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
-        </section>
-      ))}
+          </section>
+        ))}
+      </details>
       <section className="card">
         <h2>Antaganden och spårbarhet</h2>
         <p>{r.method_note}</p>
@@ -1559,6 +1713,50 @@ function InputReport({
     </>
   );
 }
+const steps = [
+  ["project", "Projekt"],
+  ["baseline", "Nuläge"],
+  ["alternatives", "Åtgärder"],
+  ["review", "Granska"],
+  ["results", "Resultat"],
+];
+function GroupNav({
+  groups,
+  active,
+  onChange,
+  status,
+}: {
+  groups: string[];
+  active: string;
+  onChange: (group: string) => void;
+  status: (group: string) => string;
+}) {
+  return (
+    <nav className="group-nav" aria-label="Delar i aktuellt steg">
+      <p className="eyebrow">EN DEL I TAGET</p>
+      {groups.map((group) => (
+        <button
+          key={group}
+          aria-current={active === group ? "step" : undefined}
+          className={active === group ? "selected" : ""}
+          onClick={() => onChange(group)}
+        >
+          {group}
+          <small>{status(group)}</small>
+        </button>
+      ))}
+      <p className="group-guidance">
+        Du kan byta del när du vill och spara ett ofärdigt utkast.
+      </p>
+      <p className="group-guidance">
+        Tomt = uppgift saknas.
+        <br />0 = värdet är noll.
+        <br />
+        Inte aktuellt = ingår inte.
+      </p>
+    </nav>
+  );
+}
 function App() {
   const [catalog, setCatalog] = useState<any>(null),
     [projects, setProjects] = useState<any[]>([]),
@@ -1573,10 +1771,74 @@ function App() {
     [showArchived, setShowArchived] = useState(false),
     [backups, setBackups] = useState<string[]>([]),
     [backupChoice, setBackupChoice] = useState("");
+  const [baselineGroup, setBaselineGroup] = useState("Volymer");
+  const [alternativeGroup, setAlternativeGroup] = useState("Om åtgärden");
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [focusPath, setFocusPath] = useState("");
+  const [review, setReview] = useState<{
+    snapshot: string;
+    fields: FieldIssue[];
+    errors: string[];
+  } | null>(null);
+  const [reviewError, setReviewError] = useState("");
   const [serverIssues, setFieldIssues] = useState<FieldIssue[]>([]);
+  const snapshot = JSON.stringify(project);
+  useEffect(() => {
+    if (tab !== "review" || !project) return;
+    let cancelled = false;
+    setReviewError("");
+    api("/validate", "POST", project)
+      .then((result) => {
+        if (!cancelled) {
+          setReview({ snapshot, ...result });
+          setFieldIssues(result.fields);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setReviewError(String(error));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, snapshot]);
+  useEffect(() => {
+    if (!focusPath) return;
+    const container = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-field-path]"),
+    ).find((el) => el.dataset.fieldPath === focusPath);
+    if (container) {
+      container.scrollIntoView({ block: "center" });
+      container.querySelector<HTMLElement>("input,select,button")?.focus();
+      setFocusPath("");
+    }
+  }, [focusPath, tab, baselineGroup, alternativeGroup, altIndex]);
+  const goToIssue = (path: string) => {
+    if (path.startsWith("alternatives")) {
+      setTab("alternatives");
+      const index = Number(path.split(".")[1]);
+      if (Number.isInteger(index)) setAltIndex(index);
+      const key = path.split(".")[3];
+      setAlternativeGroup(
+        catalog?.alternative.find((f: Field) => f[0] === key)?.[3] ||
+          "Om åtgärden",
+      );
+    } else if (path.startsWith("baseline") || path === "small_share") {
+      setTab("baseline");
+      setBaselineGroup(
+        path === "small_share"
+          ? "Källaröversvämningar"
+          : catalog?.baseline.find(
+              (f: Field) => f[0] === path.split(".")[1],
+            )?.[3] || "Volymer",
+      );
+    } else setTab("project");
+    setFocusPath(path);
+  };
   // These comparisons are recalculated as either the baseline or effect changes.
   const fieldIssues = [
-    ...serverIssues.filter((issue) => !issue.message.includes("maximal minskning för")),
+    ...serverIssues.filter(
+      (issue) => !issue.message.includes("maximal minskning för"),
+    ),
     ...effectIssues(project),
   ];
   useEffect(() => {
@@ -1660,6 +1922,7 @@ function App() {
   useEffect(() => {
     let opened: HTMLDetailsElement[] = [];
     const before = () => {
+      if (opened.length) return;
       opened = Array.from(
         document.querySelectorAll<HTMLDetailsElement>(
           ".report details:not([open])",
@@ -1690,12 +1953,7 @@ function App() {
       const fields: FieldIssue[] = (e as any).fields || [];
       setFieldIssues(fields);
       if (fields.length) {
-        const path = fields[0].path;
-        if (path.startsWith("alternatives")) {
-          setTab("alternatives");
-          const index = Number(path.split(".")[1]);
-          if (Number.isInteger(index)) setAltIndex(index);
-        } else setTab(path === "name" ? "project" : "baseline");
+        goToIssue(fields[0].path);
       }
       setMessage(
         fields.length
@@ -1716,6 +1974,9 @@ function App() {
     const last = rs.find((x: any) => x.status === "complete");
     setRun(last ? await api("/runs/" + last.id) : null);
     setTab("project");
+    setLibraryOpen(false);
+    setBaselineGroup("Volymer");
+    setAlternativeGroup("Om åtgärden");
   };
   const save = async () => {
     if (!project) throw new Error("Inget projekt är öppet.");
@@ -1737,6 +1998,9 @@ function App() {
     setRun(null);
     setRuns([]);
     setTab("project");
+    setLibraryOpen(false);
+    setBaselineGroup("Volymer");
+    setAlternativeGroup("Om åtgärden");
   };
   const patch = (change: Partial<Project>) =>
     setProject((p) => (p ? { ...p, ...change } : p));
@@ -1771,6 +2035,107 @@ function App() {
       "Stödvärdet har förts över. Spara projektet för att behålla det.",
     );
   };
+  const calculateProject = () =>
+    execute(async () => {
+      setFieldIssues([]);
+      const p = dirty || !saved ? await save() : saved;
+      const r = await api("/projects/" + p.id + "/calculate", "POST", {
+        revision: p.revision,
+      });
+      setRun(r);
+      setRuns(await api("/projects/" + p.id + "/runs"));
+      setTab("results");
+    });
+  const baselineGroups = [
+    ...new Set<string>((catalog?.baseline || []).map((f: Field) => f[3])),
+  ];
+  const alternativeGroups = [
+    "Om åtgärden",
+    ...new Set<string>((catalog?.alternative || []).map((f: Field) => f[3])),
+  ];
+  const groupStatus = (group: string, alternative = false) => {
+    if (!project) return "";
+    if (!alternative && project.excluded_groups?.includes(group))
+      return "Inte aktuellt";
+    const fields: Field[] =
+      (alternative ? catalog?.alternative : catalog?.baseline) || [];
+    const params = alternative
+      ? project.alternatives[altIndex]?.params
+      : project.baseline;
+    const members = fields.filter((f) => f[3] === group);
+    const prefix = alternative ? `alternatives.${altIndex}.` : "baseline.";
+    if (
+      fieldIssues.some(
+        (issue) =>
+          issue.path.startsWith(prefix) &&
+          (members.some((f) => issue.path.endsWith("." + f[0])) ||
+            (group === "Om åtgärden" && !issue.path.includes(".params."))),
+      ) ||
+      (!alternative &&
+        group === "Källaröversvämningar" &&
+        fieldIssues.some((i) => i.path === "small_share"))
+    )
+      return "Kontrollera";
+    if (!members.length) return "Namn, år och andelar";
+    const included = members.filter(
+      ([key]) =>
+        !params?.[key]?.excluded &&
+        !(
+          alternative &&
+          ((key === "flood_reduction" &&
+            project.excluded_groups?.includes("Källaröversvämningar")) ||
+            (key === "overflow_reduction" &&
+              project.excluded_groups?.includes("Bräddning")))
+        ),
+    );
+    if (!included.length) return "Inte aktuellt";
+    const missing = included.filter(
+      ([key]) => params?.[key]?.mode == null,
+    ).length;
+    return missing
+      ? `${missing} uppgifter saknas`
+      : "Ifyllt · granska underlaget";
+  };
+  const move = (direction: number) => {
+    const groups =
+      tab === "baseline"
+        ? baselineGroups
+        : tab === "alternatives"
+          ? alternativeGroups
+          : [];
+    const current = tab === "baseline" ? baselineGroup : alternativeGroup;
+    const index = groups.indexOf(current) + direction;
+    if (groups.length && index >= 0 && index < groups.length) {
+      (tab === "baseline" ? setBaselineGroup : setAlternativeGroup)(
+        groups[index],
+      );
+    } else {
+      const next = steps[steps.findIndex(([key]) => key === tab) + direction];
+      if (next) {
+        setTab(next[0]);
+        if (next[0] === "baseline")
+          setBaselineGroup(
+            direction > 0
+              ? baselineGroups[0]
+              : baselineGroups[baselineGroups.length - 1],
+          );
+        if (next[0] === "alternatives")
+          setAlternativeGroup(
+            direction > 0
+              ? alternativeGroups[0]
+              : alternativeGroups[alternativeGroups.length - 1],
+          );
+      }
+    }
+    window.scrollTo({ top: 0 });
+  };
+  const nextLabel =
+    tab === "baseline"
+      ? baselineGroups[baselineGroups.indexOf(baselineGroup) + 1] || "Åtgärder"
+      : tab === "alternatives"
+        ? alternativeGroups[alternativeGroups.indexOf(alternativeGroup) + 1] ||
+          "Granska"
+        : "Nuläge";
   const alt = project?.alternatives[altIndex];
   const shareComplete =
     !!alt &&
@@ -1786,8 +2151,15 @@ function App() {
     ? "Ange både grundvattenpåverkan och trög regnpåverkan."
     : "Andelarna måste ligga mellan 0 och 100 %. Grundvattenpåverkan och trög regnpåverkan får tillsammans vara högst 100 %.";
   return (
-    <div className="app">
-      <aside className="sidebar no-print">
+    <div className={"app guided-app" + (libraryOpen ? " library-open" : "")}>
+      <aside
+        className="sidebar no-print"
+        aria-label="Projektbibliotek"
+        hidden={!libraryOpen}
+      >
+        <button onClick={() => setLibraryOpen(false)}>
+          Stäng projektlistan ×
+        </button>
         <a className="brand" href="/">
           Tillskottsvatten<span>VÄRDERING</span>
         </a>
@@ -1890,6 +2262,15 @@ function App() {
       </aside>
       <main>
         <div className="toolbar no-print">
+          <button
+            aria-expanded={libraryOpen}
+            onClick={() => setLibraryOpen(!libraryOpen)}
+          >
+            Mina projekt
+          </button>
+          <strong className="toolbar-title">
+            Tillskottsvattenvärdering <small>0.2</small>
+          </strong>
           <span className={"status " + (dirty ? "unsaved" : "")}>
             {busy
               ? "Arbetar…"
@@ -1913,23 +2294,23 @@ function App() {
             </button>
             <button
               className="primary"
-              disabled={!project || busy}
+              disabled={
+                !project ||
+                busy ||
+                (tab === "review" &&
+                  (review?.snapshot !== snapshot ||
+                    !!review?.errors.length ||
+                    !!reviewError))
+              }
               onClick={() =>
-                execute(async () => {
-                  setFieldIssues([]);
-                  const p = dirty || !saved ? await save() : saved;
-                  const r = await api(
-                    "/projects/" + p.id + "/calculate",
-                    "POST",
-                    { revision: p.revision },
-                  );
-                  setRun(r);
-                  setRuns(await api("/projects/" + p.id + "/runs"));
-                  setTab("results");
-                })
+                tab === "review" ? calculateProject() : setTab("review")
               }
             >
-              {busy ? "Arbetar…" : "Beräkna"}
+              {busy
+                ? "Arbetar…"
+                : tab === "review"
+                  ? "Beräkna"
+                  : "Granska underlaget"}
             </button>
           </div>
         </div>
@@ -1967,23 +2348,20 @@ function App() {
         ) : (
           <>
             <nav className="tabs no-print" aria-label="Projektets delar">
-              {[
-                ["project", "Projekt"],
-                ["baseline", "Nuläge"],
-                ["alternatives", "Åtgärder"],
-                ["results", "Resultat"],
-              ].map(([key, label]) => (
+              {steps.map(([key, label], index) => (
                 <button
                   key={key}
                   className={tab === key ? "selected" : ""}
+                  aria-current={tab === key ? "step" : undefined}
                   onClick={() => setTab(key)}
                 >
+                  <span className="step-number">{index + 1}</span>
                   {label}
                   {fieldIssues.some((e) =>
                     key === "project"
-                      ? e.path === "name"
+                      ? e.path === "name" || e.path.startsWith("analysis.")
                       : key === "baseline"
-                        ? /^(baseline|analysis|small_share)/.test(e.path)
+                        ? /^(baseline|small_share)/.test(e.path)
                         : key === "alternatives"
                           ? e.path.startsWith("alternatives")
                           : false,
@@ -1996,7 +2374,7 @@ function App() {
             {fieldIssues.length > 0 && (
               <p className="validation-summary" role="status">
                 Markerade fält behöver kontrolleras. Effekterna jämförs direkt
-                med nuläget. Övriga fel uppdateras när du väljer Beräkna igen.
+                med nuläget. Öppna Granska igen för att uppdatera övriga fel.
               </p>
             )}
             <IssueContext.Provider value={fieldIssues}>
@@ -2077,37 +2455,6 @@ function App() {
                         </div>
                       )}
                     </section>
-                    <section className="card">
-                      <h2>Så används modellen</h2>
-                      <p>
-                        Jämför upp till tre åtgärder med nuläget. Analysen
-                        omfattar kommunens kostnader och effekter för resten av
-                        samhället och är en del av ett bredare beslutsunderlag.
-                      </p>
-                      <p>
-                        Börja med tillgängliga uppgifter och förbättra
-                        underlaget stegvis. Prioritera poster som är osäkra
-                        eller har stor påverkan på resultatet. Välj Inte
-                        aktuellt för sådant som inte ingår; tomma fält betyder
-                        att uppgifter saknas. Arbetet kan sparas även när det är
-                        ofullständigt.
-                      </p>
-                      <p className="notice">
-                        Versionen är under verifiering mot Excel-grundfilen.
-                        ARV-hjälpen använder en dokumenterad rekonstruktion.
-                      </p>
-                    </section>
-                  </>
-                )}
-                {tab === "baseline" && (
-                  <>
-                    <header className="intro">
-                      <h1>Nuläge</h1>
-                      <p>
-                        Gemensamma förutsättningar för alla åtgärder. Min och
-                        max beskriver osäkerheten, inte årets variation.
-                      </p>
-                    </header>
                     <section className="card">
                       <h2>Analysens förutsättningar</h2>
                       <p>
@@ -2208,73 +2555,116 @@ function App() {
                         reproducerbara.
                       </p>
                     </section>
-                    <Parameters
-                      examples={catalog.examples}
-                      groupContent={(group) =>
-                        group === "Källaröversvämningar" ? (
-                          <div className="flood-shares">
-                            <h3>Fördelning av översvämmade byggnader</h3>
-                            <p>
-                              Andelen avser mindre byggnader, exempelvis småhus.
-                              Startvärdet 100 % är ett redigerbart antagande i
-                              programmet, inte ett Göteborgsexempel. Anpassa
-                              fördelningen till området. Resterande andel räknas
-                              som större byggnader.
-                            </p>
-                            <div className="grid">
-                              {" "}
-                              <NumberField
-                                helpKey="small_share"
-                                errorPath="small_share"
-                                label="Andel mindre byggnader bland de översvämmade"
-                                unit="%"
-                                value={project.small_share}
-                                onChange={(v) =>
-                                  patch({ small_share: v as number })
-                                }
-                              />
-                              <div className="field">
-                                Andel större byggnader
-                                <strong>
-                                  {fmt(100 - project.small_share, 2)} %
-                                </strong>
+                    <section className="card">
+                      <h2>Så används modellen</h2>
+                      <p>
+                        Jämför upp till tre åtgärder med nuläget. Analysen
+                        omfattar kommunens kostnader och effekter för resten av
+                        samhället och är en del av ett bredare beslutsunderlag.
+                      </p>
+                      <p>
+                        Börja med tillgängliga uppgifter och förbättra
+                        underlaget stegvis. Prioritera poster som är osäkra
+                        eller har stor påverkan på resultatet. Välj Inte
+                        aktuellt för sådant som inte ingår; tomma fält betyder
+                        att uppgifter saknas. Arbetet kan sparas även när det är
+                        ofullständigt.
+                      </p>
+                      <p className="notice">
+                        Versionen är under verifiering mot Excel-grundfilen.
+                        ARV-hjälpen använder en dokumenterad rekonstruktion.
+                      </p>
+                    </section>
+                  </>
+                )}
+                {tab === "baseline" && (
+                  <>
+                    <header className="intro">
+                      <h1>Nuläge</h1>
+                      <p>
+                        Gemensamma förutsättningar för alla åtgärder. Min och
+                        max beskriver osäkerheten, inte årets variation.
+                      </p>
+                    </header>
+                    <div className="guide-layout">
+                      <GroupNav
+                        groups={baselineGroups}
+                        active={baselineGroup}
+                        onChange={setBaselineGroup}
+                        status={(group) => groupStatus(group)}
+                      />
+                      <div className="guide-form">
+                        <Parameters
+                          activeGroup={baselineGroup}
+                          examples={catalog.examples}
+                          groupContent={(group) =>
+                            group === "Källaröversvämningar" ? (
+                              <div className="flood-shares">
+                                <h3>Fördelning av översvämmade byggnader</h3>
+                                <p>
+                                  Andelen avser mindre byggnader, exempelvis
+                                  småhus. Startvärdet 100 % är ett redigerbart
+                                  antagande i programmet, inte ett
+                                  Göteborgsexempel. Anpassa fördelningen till
+                                  området. Resterande andel räknas som större
+                                  byggnader.
+                                </p>
+                                <div className="grid">
+                                  {" "}
+                                  <NumberField
+                                    helpKey="small_share"
+                                    errorPath="small_share"
+                                    label="Andel mindre byggnader bland de översvämmade"
+                                    unit="%"
+                                    value={project.small_share}
+                                    onChange={(v) =>
+                                      patch({ small_share: v as number })
+                                    }
+                                  />
+                                  <div className="field">
+                                    Andel större byggnader
+                                    <strong>
+                                      {fmt(100 - project.small_share, 2)} %
+                                    </strong>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        ) : null
-                      }
-                      support={(key) => {
-                        const kind = { floods: "flood", arv_ground: "arv" }[
-                          key
-                        ];
-                        return kind ? (
-                          <FieldSupport
-                            project={project}
-                            kind={kind}
-                            target="baseline"
-                            onApply={apply}
-                            notify={setMessage}
-                          />
-                        ) : null;
-                      }}
-                      excludedGroups={project.excluded_groups || []}
-                      onGroupToggle={(group, excluded) => {
-                        patch({
-                          excluded_groups: excluded
-                            ? [...(project.excluded_groups || []), group]
-                            : (project.excluded_groups || []).filter(
-                                (g) => g !== group,
-                              ),
-                        });
-                        setFieldIssues([]);
-                      }}
-                      errorScope="baseline"
-                      fields={catalog?.baseline || []}
-                      values={project.baseline}
-                      onChange={(k, p) =>
-                        patch({ baseline: { ...project.baseline, [k]: p } })
-                      }
-                    />
+                            ) : null
+                          }
+                          support={(key) => {
+                            const kind = { floods: "flood", arv_ground: "arv" }[
+                              key
+                            ];
+                            return kind ? (
+                              <FieldSupport
+                                project={project}
+                                kind={kind}
+                                target="baseline"
+                                onApply={apply}
+                                notify={setMessage}
+                              />
+                            ) : null;
+                          }}
+                          excludedGroups={project.excluded_groups || []}
+                          onGroupToggle={(group, excluded) => {
+                            patch({
+                              excluded_groups: excluded
+                                ? [...(project.excluded_groups || []), group]
+                                : (project.excluded_groups || []).filter(
+                                    (g) => g !== group,
+                                  ),
+                            });
+                            setFieldIssues([]);
+                          }}
+                          errorScope="baseline"
+                          fields={catalog?.baseline || []}
+                          values={project.baseline}
+                          onChange={(k, p) =>
+                            patch({ baseline: { ...project.baseline, [k]: p } })
+                          }
+                        />
+                      </div>
+                    </div>
                   </>
                 )}
                 {tab === "alternatives" && alt && (
@@ -2303,143 +2693,291 @@ function App() {
                         </button>
                       ))}
                     </div>
-                    <section className="card">
-                      <FieldValidation path="alternatives">
-                        <label className="check">
-                          <input
-                            type="checkbox"
-                            checked={alt.active}
-                            onChange={(e) =>
-                              updateAlt(altIndex, { active: e.target.checked })
-                            }
-                          />
-                          Ta med i analysen
-                        </label>
-                      </FieldValidation>
-                      <FieldValidation
-                        path={"alternatives." + altIndex + ".name"}
-                      >
-                        <label className="field">
-                          Namn på åtgärden
-                          <input
-                            value={alt.name}
-                            onChange={(e) =>
-                              updateAlt(altIndex, { name: e.target.value })
-                            }
-                          />
-                        </label>
-                      </FieldValidation>
-                      <div className="grid">
-                        <NumberField
-                          errorPath={"alternatives." + altIndex + ".start"}
-                          helpKey="build_start"
-                          label="Byggstart"
-                          value={alt.start}
-                          onChange={(v) =>
-                            updateAlt(altIndex, { start: v as number })
-                          }
-                        />
-                        <NumberField
-                          errorPath={"alternatives." + altIndex + ".end"}
-                          helpKey="build_end"
-                          label="Färdigställande"
-                          value={alt.end}
-                          onChange={(v) =>
-                            updateAlt(altIndex, { end: v as number })
-                          }
-                        />
-                      </div>
-                      <p>
-                        Byggkostnader fördelas jämnt från och med byggstart till
-                        och med färdigställande.
-                      </p>
-                      <h3>Fördelning av borttaget tillskottsvatten</h3>
-                      <p>
-                        Andelarna gäller den volym som åtgärden tar bort, inte
-                        allt vatten i nuläget.
-                      </p>
-                      <div
-                        className={
-                          "grid share-fields" +
-                          (sharesInvalid ? " shares-invalid" : "")
-                        }
-                        role="group"
-                        aria-label="Fördelning av borttaget tillskottsvatten"
-                        aria-describedby="share-total"
-                        title={sharesInvalid ? shareError : undefined}
-                      >
-                        {[
-                          "Grundvattenpåverkan",
-                          "Trög regnpåverkan",
-                          "Snabb regnpåverkan",
-                        ].map((label, i) => (
-                          <NumberField
-                            key={alt.id + i}
-                            label={label}
-                            unit="%"
-                            value={alt.shares[i]}
-                            readOnly={i === 2}
-                            invalid={sharesInvalid}
-                            onChange={(v) => {
-                              if (i === 2) return;
-                              const shares = [...alt.shares];
-                              shares[i] = v as number;
-                              shares[2] = (
-                                typeof shares[0] === "number" &&
-                                typeof shares[1] === "number"
-                                  ? Math.round(
-                                      (100 - shares[0] - shares[1]) * 1e10,
-                                    ) / 1e10
-                                  : null
-                              ) as number;
-                              updateAlt(altIndex, { shares });
+                    <div className="guide-layout">
+                      <GroupNav
+                        groups={alternativeGroups}
+                        active={alternativeGroup}
+                        onChange={setAlternativeGroup}
+                        status={(group) => groupStatus(group, true)}
+                      />
+                      <div className="guide-form">
+                        {!alt.active && (
+                          <p className="notice">
+                            Detta alternativ är inaktivt och ingår inte i
+                            beräkningen. Aktivera det under Om åtgärden.
+                          </p>
+                        )}
+                        {alternativeGroup === "Om åtgärden" && (
+                          <section className="card">
+                            <FieldValidation path="alternatives">
+                              <label className="check">
+                                <input
+                                  type="checkbox"
+                                  checked={alt.active}
+                                  onChange={(e) =>
+                                    updateAlt(altIndex, {
+                                      active: e.target.checked,
+                                    })
+                                  }
+                                />
+                                Ta med i analysen
+                              </label>
+                            </FieldValidation>
+                            <FieldValidation
+                              path={"alternatives." + altIndex + ".name"}
+                            >
+                              <label className="field">
+                                Namn på åtgärden
+                                <input
+                                  value={alt.name}
+                                  onChange={(e) =>
+                                    updateAlt(altIndex, {
+                                      name: e.target.value,
+                                    })
+                                  }
+                                />
+                              </label>
+                            </FieldValidation>
+                            <div className="grid">
+                              <NumberField
+                                errorPath={
+                                  "alternatives." + altIndex + ".start"
+                                }
+                                helpKey="build_start"
+                                label="Byggstart"
+                                value={alt.start}
+                                onChange={(v) =>
+                                  updateAlt(altIndex, { start: v as number })
+                                }
+                              />
+                              <NumberField
+                                errorPath={"alternatives." + altIndex + ".end"}
+                                helpKey="build_end"
+                                label="Färdigställande"
+                                value={alt.end}
+                                onChange={(v) =>
+                                  updateAlt(altIndex, { end: v as number })
+                                }
+                              />
+                            </div>
+                            <p>
+                              Byggkostnader fördelas jämnt från och med
+                              byggstart till och med färdigställande.
+                            </p>
+                            <h3>Fördelning av borttaget tillskottsvatten</h3>
+                            <p>
+                              Andelarna gäller den volym som åtgärden tar bort,
+                              inte allt vatten i nuläget.
+                            </p>
+                            <div
+                              className={
+                                "grid share-fields" +
+                                (sharesInvalid ? " shares-invalid" : "")
+                              }
+                              role="group"
+                              aria-label="Fördelning av borttaget tillskottsvatten"
+                              data-field-path={
+                                "alternatives." + altIndex + ".shares"
+                              }
+                              aria-describedby="share-total"
+                              title={sharesInvalid ? shareError : undefined}
+                            >
+                              {[
+                                "Grundvattenpåverkan",
+                                "Trög regnpåverkan",
+                                "Snabb regnpåverkan",
+                              ].map((label, i) => (
+                                <NumberField
+                                  key={alt.id + i}
+                                  label={label}
+                                  unit="%"
+                                  value={alt.shares[i]}
+                                  readOnly={i === 2}
+                                  invalid={sharesInvalid}
+                                  onChange={(v) => {
+                                    if (i === 2) return;
+                                    const shares = [...alt.shares];
+                                    shares[i] = v as number;
+                                    shares[2] = (
+                                      typeof shares[0] === "number" &&
+                                      typeof shares[1] === "number"
+                                        ? Math.round(
+                                            (100 - shares[0] - shares[1]) *
+                                              1e10,
+                                          ) / 1e10
+                                        : null
+                                    ) as number;
+                                    updateAlt(altIndex, { shares });
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <p className="muted">
+                              Snabb regnpåverkan beräknas automatiskt: 100 %
+                              minus grundvattenpåverkan och trög regnpåverkan.
+                            </p>
+                            <p
+                              id="share-total"
+                              className={
+                                sharesInvalid ? "field-error" : undefined
+                              }
+                              role="status"
+                            >
+                              {shareComplete &&
+                              alt.shares[0] + alt.shares[1] > 100
+                                ? `Grundvattenpåverkan + trög regnpåverkan: ${fmt(alt.shares[0] + alt.shares[1], 2)} % (högst 100 %).`
+                                : `Summa: ${shareSum === null ? "–" : fmt(shareSum, 2)} % (ska vara 100 %).`}
+                              {sharesInvalid && <> {shareError}</>}
+                            </p>
+                          </section>
+                        )}
+                        {alternativeGroup !== "Om åtgärden" && (
+                          <Parameters
+                            activeGroup={alternativeGroup}
+                            baseline={project.baseline}
+                            key={alt.id}
+                            support={(key) => {
+                              const kind = {
+                                construction_co2: "climate",
+                                traffic: "traffic",
+                              }[key];
+                              return kind ? (
+                                <FieldSupport
+                                  key={alt.id + kind}
+                                  project={project}
+                                  kind={kind}
+                                  target={alt.id}
+                                  onApply={apply}
+                                  notify={setMessage}
+                                />
+                              ) : null;
                             }}
+                            excludedGroups={project.excluded_groups || []}
+                            errorScope={"alternatives." + altIndex + ".params"}
+                            fields={catalog?.alternative || []}
+                            values={alt.params}
+                            onChange={(k, p) =>
+                              updateAlt(altIndex, {
+                                params: { ...alt.params, [k]: p },
+                              })
+                            }
                           />
-                        ))}
+                        )}
                       </div>
-                      <p className="muted">
-                        Snabb regnpåverkan beräknas automatiskt: 100 % minus
-                        grundvattenpåverkan och trög regnpåverkan.
+                    </div>
+                  </>
+                )}
+                {tab === "review" && (
+                  <>
+                    <header className="intro">
+                      <p className="eyebrow">STEG 4 · GRANSKA</p>
+                      <h1>Är underlaget redo att beräknas?</h1>
+                      <p>
+                        Kontrollera uppgifter, startvärden och avgränsningar.
+                        Kontrollen sparar eller ändrar inte projektet.
                       </p>
-                      <p
-                        id="share-total"
-                        className={sharesInvalid ? "field-error" : undefined}
-                        role="status"
-                      >
-                        {shareComplete && alt.shares[0] + alt.shares[1] > 100
-                          ? `Grundvattenpåverkan + trög regnpåverkan: ${fmt(alt.shares[0] + alt.shares[1], 2)} % (högst 100 %).`
-                          : `Summa: ${shareSum === null ? "–" : fmt(shareSum, 2)} % (ska vara 100 %).`}
-                        {sharesInvalid && <> {shareError}</>}
-                      </p>
+                    </header>
+                    <section className="card">
+                      <h2>Kontroll av indata</h2>
+                      {reviewError ? (
+                        <p role="alert">
+                          Kontrollen kunde inte genomföras: {reviewError}. Öppna
+                          Granska igen för att försöka på nytt.
+                        </p>
+                      ) : review?.snapshot !== snapshot ? (
+                        <p role="status">Kontrollerar underlaget…</p>
+                      ) : review.errors.length ? (
+                        <>
+                          <p>Följande behöver rättas innan beräkning:</p>
+                          <ul className="review-issues">
+                            {review.fields.map((issue, i) => (
+                              <li key={i}>
+                                <button onClick={() => goToIssue(issue.path)}>
+                                  {issue.message} →
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                          {review.errors
+                            .filter(
+                              (error) =>
+                                !review.fields.some((f) => f.message === error),
+                            )
+                            .map((error) => (
+                              <p key={error} className="field-error">
+                                {error}
+                              </p>
+                            ))}
+                        </>
+                      ) : (
+                        <p className="review-ok">
+                          ✓ Inga indatafel hittades. Kontrollera fortfarande att
+                          antagandena passar området.
+                        </p>
+                      )}
                     </section>
-                    <Parameters
-                      key={alt.id}
-                      support={(key) => {
-                        const kind = {
-                          construction_co2: "climate",
-                          traffic: "traffic",
-                        }[key];
-                        return kind ? (
-                          <FieldSupport
-                            key={alt.id + kind}
+                    <section className="card">
+                      <h2>Det här jämförs</h2>
+                      <p>
+                        {project.name} · {project.analysis.start}–
+                        {project.analysis.end} · {project.analysis.rate} % ränta
+                      </p>
+                      {project.alternatives.map((a, i) => (
+                        <p key={a.id}>
+                          <button
+                            onClick={() => {
+                              setAltIndex(i);
+                              setAlternativeGroup("Om åtgärden");
+                              setTab("alternatives");
+                            }}
+                          >
+                            {a.name || "Åtgärd utan namn"}
+                          </button>{" "}
+                          ·{" "}
+                          {a.active
+                            ? `Ingår · byggår ${a.start}–${a.end}`
+                            : "Ingår inte"}
+                        </p>
+                      ))}
+                    </section>
+                    <section className="card">
+                      <h2>Avgränsningar och källor</h2>
+                      <p>
+                        Granska särskilt startvärden från Göteborgsexemplet,
+                        egna antaganden och poster markerade Inte aktuellt.
+                        Ifyllda värden innebär inte att underlaget är
+                        kvalitetssäkrat.
+                      </p>
+                      {project.excluded_groups?.length ? (
+                        <p>
+                          Hela grupper som inte ingår:{" "}
+                          {project.excluded_groups.join(", ")}.
+                        </p>
+                      ) : (
+                        <p>Inga hela grupper har valts bort.</p>
+                      )}
+                      <details>
+                        <summary>
+                          Visa alla uppgifter, källor och bortval
+                        </summary>
+                        <div className="table-scroll">
+                          <InputReport
                             project={project}
-                            kind={kind}
-                            target={alt.id}
-                            onApply={apply}
-                            notify={setMessage}
+                            labels={Object.fromEntries(
+                              [
+                                ...(catalog?.baseline || []),
+                                ...(catalog?.alternative || []),
+                              ].map((f: Field) => [f[0], `${f[1]} (${f[2]})`]),
+                            )}
                           />
-                        ) : null;
-                      }}
-                      excludedGroups={project.excluded_groups || []}
-                      errorScope={"alternatives." + altIndex + ".params"}
-                      fields={catalog?.alternative || []}
-                      values={alt.params}
-                      onChange={(k, p) =>
-                        updateAlt(altIndex, {
-                          params: { ...alt.params, [k]: p },
-                        })
-                      }
-                    />
+                        </div>
+                      </details>
+                    </section>
+                    <p className="notice">
+                      Excel-verifiering och slutlig metodgranskning av ARV
+                      återstår. Granskningen här kontrollerar indata, inte
+                      modellens verksamhetsmässiga giltighet.
+                    </p>
                   </>
                 )}
                 {tab === "results" && (
@@ -2488,6 +3026,37 @@ function App() {
                       ))}
                   </>
                 )}
+                <nav
+                  className="workflow-footer no-print"
+                  aria-label="Föregående och nästa steg"
+                >
+                  {tab !== "project" ? (
+                    <button onClick={() => move(-1)}>← Tillbaka</button>
+                  ) : (
+                    <span />
+                  )}
+                  {tab === "review" ? (
+                    <button
+                      className="primary"
+                      disabled={
+                        review?.snapshot !== snapshot ||
+                        !!review?.errors.length ||
+                        !!reviewError
+                      }
+                      onClick={calculateProject}
+                    >
+                      Beräkna och visa resultat →
+                    </button>
+                  ) : tab !== "results" ? (
+                    <button className="primary" onClick={() => move(1)}>
+                      Nästa: {nextLabel} →
+                    </button>
+                  ) : (
+                    <button onClick={() => setTab("review")}>
+                      Granska aktuella indata
+                    </button>
+                  )}
+                </nav>
               </fieldset>
             </IssueContext.Provider>
           </>

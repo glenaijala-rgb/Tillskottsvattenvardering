@@ -1,4 +1,4 @@
-# Tillskottsvattenvärdering
+# Tillskottsvattenvärdering 0.2
 
 En lokal webbapp för samhällsekonomisk värdering av tillskottsvattenåtgärder, med sparade projekt i SQLite.
 
@@ -6,9 +6,11 @@ En lokal webbapp för samhällsekonomisk värdering av tillskottsvattenåtgärde
 
 Dubbelklicka på **Starta.cmd** i `D:\kod\Tillskottsvattenvardering`.
 
-Programmet öppnas på `http://127.0.0.1:8765`. Välj **Öppna syntetiskt typfall** för att prova eller **Nytt projekt** för egna uppgifter. Välj **Spara projekt** regelbundet. **Beräkna** sparar också projektet och en separat resultatkörning.
+Programmet öppnas på `http://127.0.0.1:8765`. Välj **Mina projekt → Öppna syntetiskt typfall** för att prova eller **Mina projekt → Nytt projekt** för egna uppgifter. Välj **Spara projekt** regelbundet. **Beräkna** sparar också projektet och en separat resultatkörning.
 
 ## Läs detta
+
+- [Nyheter och verifiering i version 0.2](docs/VERSION_0.2.md)
 
 - [Användarguide](docs/ANVANDARGUIDE.md)
 - [Verifiering och kvarstående begränsningar](docs/VERIFIERING.md)
