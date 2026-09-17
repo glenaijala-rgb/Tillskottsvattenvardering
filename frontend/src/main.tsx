@@ -393,9 +393,9 @@ const helperDefinitions: Record<
       ["trench_length", "Längd med schakt", "m", 0],
       ["trenchless_speed", "Hastighet schaktfritt", "m/dygn", 100],
       ["trench_speed", "Hastighet med schakt", "m/dygn", 5],
-      ["delay", "Försening per fordon", "sekunder", 0],
-      ["vehicles", "Årsmedeldygntrafik", "fordon/dygn", 0],
-      ["time_cost", "Tidskostnad", "kr/timme/fordon", 0],
+      ["delay", "Försening per fordon", "sekunder", 30],
+      ["vehicles", "Årsmedeldygntrafik", "fordon/dygn", 5000],
+      ["time_cost", "Tidskostnad", "kr/timme/fordon", 125],
     ],
   },
   flood: { name: "Källaröversvämningsrisk", fields: [] },
@@ -455,6 +455,24 @@ function Helpers({
         source: "Göteborgsexempel, TSV KNA.xlsb, Beräkningshjälp!H49:J49",
         note: "Historiskt exempel; bedöm lokal relevans.",
       };
+    }
+    if (kind === "traffic" && !previous) {
+      const examples = {
+        trenchless_speed: [80, 100, 150],
+        trench_speed: [4, 5, 6],
+        delay: [5, 30, 120],
+        vehicles: [300, 5000, 40000],
+        time_cost: [null, 125, null],
+      };
+      for (const [key, v] of Object.entries(examples))
+        initial[key] = {
+          low: v[0],
+          mode: v[1],
+          high: v[2],
+          source:
+            "Göteborgsexempel, TSV KNA.xlsb, Beräkningshjälp!I63 och H66:J69",
+          note: "Historiskt exempel; bedöm lokal relevans.",
+        };
     }
     if (["climate", "traffic"].includes(kind)) {
       const shared = [...project.helpers]
@@ -574,6 +592,149 @@ function Helpers({
               beräknas med projektets koldioxidvärdering. Osäkerhetsintervallet
               är förvalt. Om du väljer fasta värden används bara det mest
               troliga värdet.
+            </p>
+          </details>
+        )}
+        {kind === "traffic" && (
+          <details className="field-info">
+            <summary aria-label="Information om trafikexempel">
+              <span className="info-icon" aria-hidden="true">
+                i
+              </span>{" "}
+              Information om trafikens startvärden
+            </summary>
+            <p>
+              Historiska Göteborgsexempel från TSV KNA.xlsb, Beräkningshjälp!I63
+              och H66:J69. Vägledningen anger att tidskostnaden bygger på en
+              VTI-studie, men fullständig studiereferens och prisår framgår inte
+              av den granskade vägledningstexten.
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Uppgift</th>
+                  <th>Min</th>
+                  <th>Mest troligt</th>
+                  <th>Max</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Schaktfritt, m/dygn</th>
+                  <td>80</td>
+                  <td>100</td>
+                  <td>150</td>
+                </tr>
+                <tr>
+                  <th>Schakt, m/dygn</th>
+                  <td>4</td>
+                  <td>5</td>
+                  <td>6</td>
+                </tr>
+                <tr>
+                  <th>Försening, sekunder/fordon</th>
+                  <td>5</td>
+                  <td>30</td>
+                  <td>120</td>
+                </tr>
+                <tr>
+                  <th>Årsmedeldygntrafik, fordon/dygn</th>
+                  <td>300</td>
+                  <td>5 000</td>
+                  <td>40 000</td>
+                </tr>
+                <tr>
+                  <th>Tidskostnad, kr/timme/fordon</th>
+                  <td>–</td>
+                  <td>125</td>
+                  <td>–</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              Byggtid uppskattas som längd delad med arbetstakt. Förlorad
+              trafiktid värderas med försening, trafikmängd och tidskostnad. Byt
+              exemplen mot lokala uppgifter när sådana finns. 125 kr är ett fast
+              historiskt exempel, inte en aktuell rekommendation. Längderna
+              måste anges för åtgärden; noll i längdfältet är inget
+              Göteborgsexempel.
+            </p>
+          </details>
+        )}
+        {kind === "arv" && (
+          <details className="field-info">
+            <summary aria-label="Information om reningsverkets exempelvärden">
+              <span className="info-icon" aria-hidden="true">
+                i
+              </span>{" "}
+              Information om reningsverkets startvärden
+            </summary>
+            <p>Grundfilens exempel finns i Beräkningshjälp!H8:I10:</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Uppgift</th>
+                  <th>Bygg</th>
+                  <th>Installation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Andel av nyinvesteringen</th>
+                  <td>70 %</td>
+                  <td>30 %</td>
+                </tr>
+                <tr>
+                  <th>Livslängd</th>
+                  <td>50 år</td>
+                  <td>25 år</td>
+                </tr>
+                <tr>
+                  <th>Reinvestering efter livslängden</th>
+                  <td>30 %</td>
+                  <td>50 %</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              Installationens andel är resten efter byggandelen.
+              Reinvesteringsandel betyder hur stor del av respektive komponents
+              ursprungliga investering som återinvesteras efter dess livslängd.
+              Modellen bygger på expertbedömningar av dimensionering och
+              använder referensscenarier för 30, 50 och 70 procent
+              tillskottsvatten. Värden mellan scenarierna interpoleras; utanför
+              30–70 procent används närmaste scenario.
+            </p>
+            <p>
+              Andel tillskottsvatten 50 % och nyinvesteringsår 2032 är
+              programmets redigerbara startantaganden, inte förifyllda
+              projektspecifika värden från grundfilen. Ange egna uppgifter.
+              Stödet beräknar marginalnyttor, inte hela reningsverkets
+              investeringskostnad. Den rekonstruerade metoden behöver
+              slutgranskas.
+            </p>
+          </details>
+        )}
+        {kind === "flood" && (
+          <details className="field-info">
+            <summary aria-label="Information om översvämningsunderlag">
+              <span className="info-icon" aria-hidden="true">
+                i
+              </span>{" "}
+              Information om återkomsttider och skadeantal
+            </summary>
+            <p>
+              Återkomsttiderna 1, 2, 5, 10, 20 och 100 år kommer från
+              Beräkningshjälp!C28:C33. Grundfilen innehåller inga exempel på
+              antal översvämmade källare i D28:D33. Programmets nollor är
+              startplatshållare och ska ersättas med områdets modellerade eller
+              bedömda skadeantal. De är inte statistik från Göteborg.
+            </p>
+            <p>
+              Stödet beräknar ett förväntat årsantal från riskkurvan. Sällsynta
+              men allvarliga händelser kan därför påverka resultatet. Ange antal
+              källare, inte procent. Saknas ett sådant underlag behöver du göra
+              en dokumenterad egen bedömning.
             </p>
           </details>
         )}
@@ -1918,6 +2079,7 @@ function App() {
                             <h3>Fördelning av översvämmade byggnader</h3>
                             <p>
                               Andelen avser mindre byggnader, exempelvis småhus.
+                              Startvärdet 100 % är ett redigerbart antagande i programmet, inte ett Göteborgsexempel. Anpassa fördelningen till området.
                               Resterande andel räknas som större byggnader.
                             </p>
                             <div className="grid">
