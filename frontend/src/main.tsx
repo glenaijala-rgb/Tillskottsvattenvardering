@@ -105,18 +105,36 @@ function FieldValidation({
     </div>
   );
 }
+function FieldInfo({ label, helpKey }: { label: string; helpKey: string }) {
+  const content = help[helpKey];
+  if (!content) return null;
+  return (
+    <details className="field-info">
+      <summary aria-label={"Information om " + label}>
+        <span className="info-icon" aria-hidden="true">
+          i
+        </span>{" "}
+        Information
+      </summary>
+      <p>{content[0]}</p>
+      <p>{content[1]}</p>
+    </details>
+  );
+}
 function NumberField({
   label,
   value,
   onChange,
   unit,
   errorPath,
+  helpKey,
 }: {
   label: string;
   value: number | null;
   onChange: (v: number | null) => void;
   unit?: string;
   errorPath?: string;
+  helpKey?: string;
 }) {
   const [text, setText] = useState(
     value == null ? "" : String(value).replace(".", ","),
@@ -146,6 +164,7 @@ function NumberField({
           }}
         />
       </label>
+      {helpKey && <FieldInfo label={label} helpKey={helpKey} />}
     </FieldValidation>
   );
 }
@@ -197,6 +216,22 @@ function Parameters({
           {!(onGroupToggle && excludedGroups.includes(group)) && (
             <>
               {groupContent?.(group)}
+              <details className="field-info">
+                <summary>
+                  <span className="info-icon" aria-hidden="true">
+                    i
+                  </span>{" "}
+                  Om min, mest troligt och max
+                </summary>
+                <p>
+                  Min och max beskriver osäkerheten i uppgiften. Mest troligt är
+                  det troligaste utfallet, inte medelvärdet. Ange endast mest
+                  troligt för ett fast värde; annars krävs både min och max.
+                  Programmet använder en beta-PERT-fördelning för osäkra indata.
+                  Resultatets P50 är medianen av simuleringarna och är inte
+                  samma sak som inmatningens mest troliga värde.
+                </p>
+              </details>
               <div className="parameter-head">
                 <span>Uppgift</span>
                 <span>Min</span>
@@ -312,6 +347,14 @@ function Parameters({
                           {help[key] && (
                             <>
                               <p>{help[key][1]}</p>
+                              {unit.startsWith("kr") && (
+                                <p>
+                                  Ange värdet av faktisk resursåtgång utan moms,
+                                  inflation, avskrivningar och låneränta. Ta med
+                                  kostnaden oavsett vem i samhället som bär den
+                                  och undvik dubbelräkning.
+                                </p>
+                              )}
                               <small>
                                 Bearbetat från grundfilens Vägledning.
                               </small>
@@ -749,6 +792,7 @@ function Helpers({
             helperDefinitions[kind].fields.map(([key, label, unit]) => (
               <NumberField
                 key={kind + key}
+                helpKey={key}
                 label={label}
                 unit={unit}
                 value={values[key] ?? null}
@@ -1954,16 +1998,17 @@ function App() {
                     <section className="card">
                       <h2>Så används modellen</h2>
                       <p>
-                        Fyll i nuläget och jämför upp till tre åtgärder. Använd
-                        belopp exklusive moms, inflation, avskrivningar och
-                        låneränta. Ta med både kommunens kostnader och externa
-                        samhällseffekter.
+                        Jämför upp till tre åtgärder med nuläget. Analysen
+                        omfattar kommunens kostnader och effekter för resten av
+                        samhället och är en del av ett bredare beslutsunderlag.
                       </p>
                       <p>
-                        Fyll i relevanta uppgifter. Välj Inte aktuellt för
-                        områden eller poster som inte ingår. Tomma fält betyder
-                        att uppgiften saknas. Lämna min och max tomma för ett
-                        fast värde. Du kan spara även när uppgifter saknas.
+                        Börja med tillgängliga uppgifter och förbättra
+                        underlaget stegvis. Prioritera poster som är osäkra
+                        eller har stor påverkan på resultatet. Välj Inte
+                        aktuellt för sådant som inte ingår; tomma fält betyder
+                        att uppgifter saknas. Arbetet kan sparas även när det är
+                        ofullständigt.
                       </p>
                       <p className="notice">
                         Versionen är under verifiering mot Excel-grundfilen.
@@ -1988,28 +2033,7 @@ function App() {
                         troligaste utfallet, inte medelvärdet. Lämna min och max
                         tomma för ett fast värde.
                       </p>
-                      <details>
-                        <summary>
-                          Om tidshorisont, ränta och koldioxidvärdering
-                        </summary>
-                        <p>
-                          Tidshorisonten är högst 100 år. En kortare period kan
-                          missa långsiktiga effekter. Högre diskonteringsränta
-                          ger framtida nyttor och kostnader mindre vikt; vid 0 %
-                          väger alla år lika.
-                        </p>
-                        <p>
-                          Koldioxidvärderingen är en konstant kostnad per kg
-                          CO₂e. Dokumentera era val och pröva hur de påverkar
-                          resultatet. Grundfilens historiska räntor och
-                          prisexempel är inte aktuella rekommendationer.
-                        </p>
-                        <p>
-                          Slumpfröet gör simuleringen reproducerbar. Fler
-                          simuleringar ger ett stabilare numeriskt underlag, men
-                          förbättrar inte osäkra antaganden.
-                        </p>
-                      </details>
+
                       <div className="grid">
                         {(
                           [
@@ -2021,6 +2045,7 @@ function App() {
                         ).map(([k, l, u]) => (
                           <NumberField
                             key={k}
+                            helpKey={k}
                             label={l}
                             unit={u}
                             errorPath={"analysis." + k}
@@ -2058,6 +2083,7 @@ function App() {
                         <div className="grid">
                           <NumberField
                             label="Slumpfrö"
+                            helpKey="seed"
                             errorPath="analysis.seed"
                             value={project.analysis.seed}
                             onChange={(v) =>
@@ -2087,6 +2113,10 @@ function App() {
                                 <option value={10000}>10 000</option>
                               </select>
                             </label>
+                            <FieldInfo
+                              label="Simuleringar"
+                              helpKey="iterations"
+                            />
                           </FieldValidation>
                         </div>
                       </details>
@@ -2112,6 +2142,7 @@ function App() {
                             <div className="grid">
                               {" "}
                               <NumberField
+                                helpKey="small_share"
                                 errorPath="small_share"
                                 label="Andel mindre byggnader bland de översvämmade"
                                 unit="%"
@@ -2219,6 +2250,7 @@ function App() {
                       <div className="grid">
                         <NumberField
                           errorPath={"alternatives." + altIndex + ".start"}
+                          helpKey="build_start"
                           label="Byggstart"
                           value={alt.start}
                           onChange={(v) =>
@@ -2227,6 +2259,7 @@ function App() {
                         />
                         <NumberField
                           errorPath={"alternatives." + altIndex + ".end"}
+                          helpKey="build_end"
                           label="Färdigställande"
                           value={alt.end}
                           onChange={(v) =>
