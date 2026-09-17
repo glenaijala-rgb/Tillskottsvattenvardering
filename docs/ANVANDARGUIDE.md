@@ -18,7 +18,7 @@ Exemplet är testdata. Det är inte en värdering av ett verkligt område.
 2. Fyll i **Nuläge**. Ange 0 där en kostnad eller effekt inte är aktuell. Tomma fält betyder att en uppgift saknas.
 3. Ett säkert värde anges bara i **Mest troligt**. För ett osäkert värde anges även **Min** och **Max**.
 4. Fyll i **Åtgärder**. Aktivera de alternativ du vill jämföra.
-5. Använd **Beräkningshjälp** vid behov. Stödvärden förs över först när du väljer **Använd**.
+5. Välj **Beräkna med stöd** vid det aktuella fältet. Stödvärden förs över först när du väljer **Använd**. Läs fältets korta förklaring eller fäll ut **Läs mer**.
 6. Välj **Spara projekt** när du vill spara arbetet, även om det inte är färdigt.
 7. Välj **Beräkna** när underlaget är komplett. Saknade eller felaktiga uppgifter visas i ett meddelande.
 
@@ -41,3 +41,11 @@ Dina data finns i `data/projects.sqlite3`. Redigera inte databasfilen manuellt m
 ## Kvarvarande verifiering
 
 Appen är en första lokal version. Grundfilen innehåller fel som har dokumenterats och flera beräkningsregler har förtydligats. Läs `docs/VERIFIERING.md` och `docs/BESLUT_OCH_FRAGOR.md` innan resultat används som beslutsunderlag. Microsoft Excel-verifieringen och ARV-modellens verksamhetsmässiga granskning återstår.
+
+## Hjälp direkt vid fälten
+
+Reningsverksstödet finns vid grundvattenpåverkan under Rening och fyller i alla tre marginalvärden. Översvämningsstödet finns vid antal källaröversvämningar. Klimat- och trafikstöden finns vid respektive fält i den valda åtgärden.
+
+Efter att du har använt ett stöd öppnar **Visa eller ändra underlag** de sparade indata igen. Ett manuellt ändrat resultat markeras som eget värde. Tidigare stöddata finns kvar. Ändringar i stödets formulär används först efter **Beräkna stödvärde** och **Använd**; spara sedan projektet. Stänger du stödet eller byter flik innan dess lämnas utkastet bort.
+
+Klimat- och trafikstödet hämtar ledningslängder från senast använda stöd för samma åtgärd. Ändrade längder behöver beräknas och användas i båda stöden. En uppmaning visas vid ett tidigare beräknat värde vars längder skiljer sig. Underlag delas inte mellan olika åtgärder.

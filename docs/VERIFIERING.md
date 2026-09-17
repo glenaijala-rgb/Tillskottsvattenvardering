@@ -44,3 +44,7 @@ Statusen är därför **byggd och lokalt testad första version**, med kvarvaran
 ## Beslut och frågor
 
 Alla arbetsbeslut och sparade frågor finns i [Beslut och frågor](BESLUT_OCH_FRAGOR.md). Användaren har inte behövt ta ställning till dem under arbetet.
+
+## Kontroll av integrerat UI-stöd 2026-09-17
+
+TypeScript-kontroll och produktionsbygge godkända. Verifierat i separat webbläsarflik med syntetiskt projekt: fyra huvudflikar, fältförklaringar, klimattypfall 10 m × 2 kg/m = 20 kg (80 kr), överföring till rätt åtgärd, återanvändning av längd i trafikstöd, uppmaning när längden ändras, åtgärd 2 opåverkad, översvämningsstöd vid nulägesfält, SQL-sparning och återöppning av underlag efter omladdning samt markering av manuellt ändrat värde. Layouten har inspekterats visuellt. Testprojektet arkiverades; befintliga användarprojekt ändrades inte. Beräkningsmotorn är oförändrad; tidigare 43 motortester har inte körts om för denna UI-ändring.

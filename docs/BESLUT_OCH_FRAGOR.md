@@ -42,3 +42,11 @@ Ingen fråga nedan kräver ett svar för att öppna och prova den lokala appen.
 - Den misstänkta referensen `Inv ARV!T30` till XFV:XFW var ett avkodningsproblem i den första XLSB-läsaren. LibreOffice läser originalformeln som `SUM(R30:S30)/(1+$Q$13)^O30`. Det ska inte behandlas som ett bekräftat fel i arbetsboken.
 - Hjälpresultaten för klimat och trafik använder `Ber!CA18=0,01` och `CA22=0,99`, inte de allmänna P95/P05-cellerna i kolumn A. Förstudiens misstanke om omvänd percentilordning i dessa hjälpresultat återtas. Däremot är P01/P99 inte absoluta min/max.
 - I ARV-underlaget använder vissa rader 18 och 22 verkliga MIN/MAX. Radrubrikerna ensamma räcker inte för att avgöra statistikens betydelse.
+
+## UI-förbättring 2026-09-17
+
+- Stödberäkningar har flyttats till berörda fält; separat hjälpflik har tagits bort.
+- Samtliga 27 huvudparametrar har kort förklaring och utfällbar bakgrund, bearbetad från Vägledning. Analysantaganden och resultat har gemensam fördjupning. Historiska pris- och ränteexempel presenteras inte som aktuella rekommendationer.
+- Ledningslängder återanvänds från senast använda klimat-/trafikunderlag inom samma åtgärd. Uppdatering kräver uttrycklig beräkning och användning; den andra beräkningen ändras inte tyst. Tidigare värde märks när längderna skiljer sig.
+- Äldre projekts stöddata kan öppnas igen. Manuell ändring kopplar loss resultatet men bevarar historiskt stöd. Utkast i öppna stöd är tillfälliga tills Använd väljs; detta förklaras i gränssnittet.
+- Inga nya verksamhetsfrågor behöver avgöras för denna UI-ändring. Tidigare frågor om Excel och ARV kvarstår.

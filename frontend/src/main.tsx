@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
+import { help } from "./help";
 
 type P = {
   low: number | null;
@@ -110,7 +111,9 @@ function Parameters({
   fields,
   values,
   onChange,
+  support,
 }: {
+  support?: (key: string) => React.ReactNode;
   fields: Field[];
   values: Record<string, P>;
   onChange: (key: string, p: P) => void;
@@ -143,11 +146,39 @@ function Parameters({
                         label={`${label}, ${{ low: "min", mode: "mest troligt", high: "max" }[k]}`}
                         value={p[k]}
                         onChange={(v) =>
-                          onChange(key, { ...p, [k]: v, derived: undefined })
+                          onChange(key, {
+                            ...p,
+                            [k]: v,
+                            derived: undefined,
+                            source: p.source.startsWith("Beräkningshjälp:")
+                              ? "Eget värde"
+                              : p.source,
+                            note: p.source.startsWith("Beräkningshjälp:")
+                              ? "Manuellt ändrat; tidigare stödberäkning finns kvar som underlag."
+                              : p.note,
+                          })
                         }
                       />
                     ))}
                   </div>
+                  {help[key] && (
+                    <div className="field-help">
+                      <p>{help[key][0]}</p>
+                      <details>
+                        <summary>Läs mer om {label.toLowerCase()}</summary>
+                        <p>{help[key][1]}</p>
+                        <small>Bearbetat från grundfilens Vägledning.</small>
+                      </details>
+                    </div>
+                  )}
+                  {key === "arv_ground" && (
+                    <p className="notice">
+                      Marginalvärdena ska inte användas vid stora
+                      flödesförändringar, exempelvis när allt tillskottsvatten
+                      tas bort. ARV-metoden är ännu inte slutligt granskad.
+                    </p>
+                  )}
+                  {support?.(key)}
                   <details>
                     <summary>
                       Källa och kommentar{p.source ? " · " + p.source : ""}
@@ -222,51 +253,68 @@ function Helpers({
   project,
   onApply,
   notify,
+  kind,
+  target,
 }: {
+  kind: string;
+  target: string;
   project: Project;
   onApply: (entry: any, target: string) => void;
   notify: (s: string) => void;
 }) {
   const [uncertain, setUncertain] = useState(false);
-  const [kind, setKind] = useState("climate");
   const [values, setValues] = useState<any>({});
   const [result, setResult] = useState<any>(null);
-  const [target, setTarget] = useState("1");
   useEffect(() => {
-    setValues(
-      kind === "flood"
-        ? { times: [1, 2, 5, 10, 20, 100], counts: [0, 0, 0, 0, 0, 0] }
-        : Object.fromEntries(
-            helperDefinitions[kind].fields.map((x) => [x[0], x[3]]),
-          ),
+    const previous = [...project.helpers]
+      .reverse()
+      .find((h) => h.kind === kind && h.target === target);
+    const initial = structuredClone(
+      previous?.values ||
+        (kind === "flood"
+          ? { times: [1, 2, 5, 10, 20, 100], counts: [0, 0, 0, 0, 0, 0] }
+          : Object.fromEntries(
+              helperDefinitions[kind].fields.map((x) => [x[0], x[3]]),
+            )),
     );
+    if (["climate", "traffic"].includes(kind)) {
+      const shared = [...project.helpers]
+        .reverse()
+        .find(
+          (h) => h.target === target && ["climate", "traffic"].includes(h.kind),
+        );
+      if (shared)
+        for (const k of ["trench_length", "trenchless_length"])
+          initial[k] = structuredClone(shared.values[k]);
+      const hasUncertainty = Object.values(initial).some(
+        (v) => v && typeof v === "object" && "mode" in v,
+      );
+      if (hasUncertainty)
+        for (const k of Object.keys(initial))
+          if (typeof initial[k] === "number")
+            initial[k] = {
+              low: null,
+              mode: initial[k],
+              high: null,
+              source: "",
+              note: "",
+            };
+    }
+    setValues(structuredClone(initial));
     setResult(null);
-    setUncertain(false);
-  }, [kind]);
+    setUncertain(
+      Object.values(initial).some(
+        (v) => v && typeof v === "object" && "mode" in v,
+      ),
+    );
+  }, [kind, target]);
+  useEffect(() => setResult(null), [project.analysis]);
   const update = (k: string, v: any) => {
     setValues({ ...values, [k]: v });
     setResult(null);
   };
   return (
     <>
-      <div className="intro">
-        <h1>Beräkningshjälp</h1>
-        <p>
-          Räkna fram ett stödvärde. Granska resultatet och välj sedan att
-          använda det i projektet.
-        </p>
-      </div>
-      <div className="subnav">
-        {Object.entries(helperDefinitions).map(([key, h]) => (
-          <button
-            key={key}
-            className={kind === key ? "selected" : ""}
-            onClick={() => setKind(key)}
-          >
-            {h.name}
-          </button>
-        ))}
-      </div>
       <section className="card">
         <h2>{helperDefinitions[kind].name}</h2>
         <p className="muted">
@@ -274,6 +322,30 @@ function Helpers({
           trafikhjälpen kan använda fasta värden eller osäkerhetsintervall.
           Föreslagna startvärden måste anpassas till ditt projekt.
         </p>
+        <p className="muted">
+          Ändringar används först när du väljer Använd. Spara därefter
+          projektet. Stänger du stödet innan dess lämnas ändringarna bort.
+        </p>
+        {["climate", "traffic"].includes(kind) && (
+          <p>
+            Ledningslängder hämtas från senast använda klimat- eller
+            trafikunderlag för denna åtgärd. Ändrade längder behöver användas i
+            båda beräkningarna.
+          </p>
+        )}
+        {kind === "arv" && (
+          <p className="notice">
+            Stödet fyller i tre marginalvärden samtidigt. P50 överförs som fasta
+            värden; osäkerheten förs inte vidare. Metoden behöver slutgranskas.
+          </p>
+        )}
+        {kind === "flood" && (
+          <p>
+            Ange antal översvämmade källare vid varje återkomsttid. Stödet
+            beräknar ett förväntat antal per år från riskkurvan. Modellen antar
+            konstant antal bortom 100-årshändelsen.
+          </p>
+        )}
         <div className="grid">
           {!uncertain &&
             helperDefinitions[kind].fields.map(([key, label, unit]) => (
@@ -430,21 +502,6 @@ function Helpers({
               )}
             </div>
           )}
-          {!["arv", "flood"].includes(kind) && (
-            <label className="field">
-              Till åtgärd
-              <select
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-              >
-                {project.alternatives.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           <button
             className="primary"
             onClick={() => {
@@ -464,23 +521,83 @@ function Helpers({
           </button>
         </section>
       )}
-      <section className="card">
-        <h2>Använda stödberäkningar</h2>
-        {project.helpers.length ? (
-          project.helpers.map((h, i) => (
-            <details key={i}>
-              <summary>
-                {helperDefinitions[h.kind]?.name} ·{" "}
-                {new Date(h.created).toLocaleString("sv-SE")}
-              </summary>
-              <pre>{JSON.stringify(h, null, 2)}</pre>
-            </details>
-          ))
-        ) : (
-          <p>Inga stödvärden har använts ännu.</p>
-        )}
-      </section>
     </>
+  );
+}
+function FieldSupport({
+  project,
+  kind,
+  target,
+  onApply,
+  notify,
+}: {
+  project: Project;
+  kind: string;
+  target: string;
+  onApply: (entry: any, target: string) => void;
+  notify: (s: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const saved = [...project.helpers]
+    .reverse()
+    .find((h) => h.kind === kind && h.target === target);
+  const parameters =
+    target === "baseline"
+      ? project.baseline
+      : project.alternatives.find((a) => a.id === target)!.params;
+  const keys = {
+    climate: ["construction_co2"],
+    traffic: ["traffic"],
+    flood: ["floods"],
+    arv: ["arv_ground", "arv_slow", "arv_fast"],
+  }[kind]!;
+  const linked = keys.every(
+    (k) =>
+      parameters[k].source ===
+      "Beräkningshjälp: " + helperDefinitions[kind].name,
+  );
+  const latest = [...project.helpers]
+    .reverse()
+    .find(
+      (h) => h.target === target && ["climate", "traffic"].includes(h.kind),
+    );
+  const outdated =
+    saved &&
+    latest &&
+    ["climate", "traffic"].includes(kind) &&
+    ["trench_length", "trenchless_length"].some(
+      (k) =>
+        JSON.stringify(saved.values[k]) !== JSON.stringify(latest.values[k]),
+    );
+  return (
+    <div className="inline-support">
+      <p className="muted">
+        {linked ? "Beräknat med stöd" : "Eget värde"}
+        {saved && !linked ? " · tidigare beräkningsunderlag finns sparat" : ""}
+      </p>
+      <button aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open
+          ? "Stäng beräkningsstöd"
+          : saved
+            ? "Visa eller ändra underlag"
+            : "Beräkna med stöd"}
+      </button>
+      {outdated && linked && (
+        <p className="notice">
+          Ledningslängder har ändrats i det andra stödet. Öppna underlaget,
+          beräkna och använd det på nytt för att uppdatera detta värde.
+        </p>
+      )}
+      {open && (
+        <Helpers
+          project={project}
+          kind={kind}
+          target={target}
+          notify={notify}
+          onApply={onApply}
+        />
+      )}
+    </div>
   );
 }
 function IntervalChart({
@@ -667,6 +784,20 @@ function Results({
           Positivt nettonuvärde innebär större beräknade nyttor än kostnader.
           P50 är medianen av simuleringarna.
         </p>
+        <details>
+          <summary>Så tolkar du resultat och osäkerhet</summary>
+          <p>
+            Nettonuvärdet är diskonterade nyttor minus diskonterade kostnader,
+            jämfört med nuläget. Annuiteten omvandlar nettonuvärdet till ett
+            lika stort årligt belopp över analysperioden.
+          </p>
+          <p>
+            P05–P95 omfattar de mittersta 90 procenten av modellens simulerade
+            utfall. Det är inte en garanti för verkligheten: resultatet beror på
+            indata, antaganden och vilka effekter som ingår. Använd analysen som
+            del av en bredare bedömning.
+          </p>
+        </details>
       </section>
       <IntervalChart
         alts={alts}
@@ -1178,7 +1309,6 @@ function App() {
                 ["project", "Projekt"],
                 ["baseline", "Nuläge"],
                 ["alternatives", "Åtgärder"],
-                ["helpers", "Beräkningshjälp"],
                 ["results", "Resultat"],
               ].map(([key, label]) => (
                 <button
@@ -1269,8 +1399,9 @@ function App() {
                     <h2>Så används modellen</h2>
                     <p>
                       Fyll i nuläget och jämför upp till tre åtgärder. Använd
-                      belopp exklusive moms, inflation och låneränta. Ta med
-                      både kommunens kostnader och externa samhällseffekter.
+                      belopp exklusive moms, inflation, avskrivningar och
+                      låneränta. Ta med både kommunens kostnader och externa
+                      samhällseffekter.
                     </p>
                     <p>
                       Fyll i alla relevanta värden. Skriv 0 där en post inte är
@@ -1295,6 +1426,33 @@ function App() {
                   </header>
                   <section className="card">
                     <h2>Analysens förutsättningar</h2>
+                    <p>
+                      Min och max beskriver osäkerhet. Mest troligt är det
+                      troligaste utfallet, inte medelvärdet. Lämna min och max
+                      tomma för ett fast värde.
+                    </p>
+                    <details>
+                      <summary>
+                        Om tidshorisont, ränta och koldioxidvärdering
+                      </summary>
+                      <p>
+                        Tidshorisonten är högst 100 år. En kortare period kan
+                        missa långsiktiga effekter. Högre diskonteringsränta ger
+                        framtida nyttor och kostnader mindre vikt; vid 0 % väger
+                        alla år lika.
+                      </p>
+                      <p>
+                        Koldioxidvärderingen är en konstant kostnad per kg CO₂e.
+                        Dokumentera era val och pröva hur de påverkar
+                        resultatet. Grundfilens historiska räntor och
+                        prisexempel är inte aktuella rekommendationer.
+                      </p>
+                      <p>
+                        Slumpfröet gör simuleringen reproducerbar. Fler
+                        simuleringar ger ett stabilare numeriskt underlag, men
+                        förbättrar inte osäkra antaganden.
+                      </p>
+                    </details>
                     <div className="grid">
                       {(
                         [
@@ -1333,7 +1491,7 @@ function App() {
                         </select>
                       </label>
                       <NumberField
-                        label="Andel mindre byggnader"
+                        label="Andel mindre byggnader bland de översvämmade"
                         unit="%"
                         value={project.small_share}
                         onChange={(v) => patch({ small_share: v as number })}
@@ -1387,6 +1545,18 @@ function App() {
                     </button>
                   </section>
                   <Parameters
+                    support={(key) => {
+                      const kind = { floods: "flood", arv_ground: "arv" }[key];
+                      return kind ? (
+                        <FieldSupport
+                          project={project}
+                          kind={kind}
+                          target="baseline"
+                          onApply={apply}
+                          notify={setMessage}
+                        />
+                      ) : null;
+                    }}
                     fields={catalog?.baseline || []}
                     values={project.baseline}
                     onChange={(k, p) =>
@@ -1457,6 +1627,10 @@ function App() {
                       och med färdigställande.
                     </p>
                     <h3>Fördelning av borttaget tillskottsvatten</h3>
+                    <p>
+                      Andelarna gäller den volym som åtgärden tar bort, inte
+                      allt vatten i nuläget.
+                    </p>
                     <div className="grid">
                       {[
                         "Grundvattenpåverkan",
@@ -1489,6 +1663,22 @@ function App() {
                   </section>
                   <Parameters
                     key={alt.id}
+                    support={(key) => {
+                      const kind = {
+                        construction_co2: "climate",
+                        traffic: "traffic",
+                      }[key];
+                      return kind ? (
+                        <FieldSupport
+                          key={alt.id + kind}
+                          project={project}
+                          kind={kind}
+                          target={alt.id}
+                          onApply={apply}
+                          notify={setMessage}
+                        />
+                      ) : null;
+                    }}
                     fields={catalog?.alternative || []}
                     values={alt.params}
                     onChange={(k, p) =>
@@ -1497,13 +1687,6 @@ function App() {
                   />
                 </>
               )}
-              {tab === "helpers" && (
-                <Helpers
-                  project={project}
-                  onApply={apply}
-                  notify={setMessage}
-                />
-              )}{" "}
               {tab === "results" && (
                 <>
                   {runs.length > 0 && (
