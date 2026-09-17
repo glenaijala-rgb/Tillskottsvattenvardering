@@ -60,3 +60,7 @@ API:t returnerar läsbara fel och stabila fältsökvägar, även för alternativ
 ## Startvärden, inställningar och enhetlig information
 
 51 tester godkända, inklusive två nya tester för startvärden, ursprungsmarkering, separata projektdata och oförändrat syntetiskt referensfall. TypeScript och produktionsbygge godkända. Kontrollerat i webbläsare: nytt projekt har koldioxidvärde 1; reningskostnaden har 0,63/0,95/4,7; slumpfrö är dolt tills Beräkningsinställningar öppnas; informationsrutan visar bakgrund, exempelvärden och källrad; ändrat värde ger avvikelseinformation; byggnadsandelarnas fält finns i Källaröversvämningar och försvinner när området väljs bort. Testet gjordes i ett osparat nytt projekt. Inga befintliga projektdata ändrades.
+
+## Självständiga hjälptexter
+
+Numrerade punkthänvisningar har tagits bort från de 27 fältens hjälptexter. Förklaringarna har kompletterats från tidigare extraherad Vägledning i TSV KNA.xlsb, särskilt för ARV, klimat, trafik, översvämningar och bräddning. Metodbegränsningar och historisk karaktär är bevarade. TypeScript-kontroll och produktionsbygge godkända. Kontroll av hjälptextkällan visar inga kvarvarande hänvisningar till numrerade punkter. Ingen beräkningskod eller projektdata ändrad.
