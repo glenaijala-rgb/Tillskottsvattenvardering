@@ -1,0 +1,16 @@
+reference/
+analysis/
+data/
+backups/
+.venv/
+node_modules/
+__pycache__/
+.pytest_cache/
+.env
+*.sqlite
+*.sqlite3
+*.db
+dist/
+
+*.log
+*.pid
