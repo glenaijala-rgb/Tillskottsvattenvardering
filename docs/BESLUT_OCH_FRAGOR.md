@@ -66,3 +66,7 @@ Snabb regnpåverkan beräknas som 100 minus grundvattenpåverkan minus trög reg
 ## Läsbara belopp
 
 Tusentalsavgränsning används för beloppsfält, även min/trolig/max och beräkningsstöd. Mellanrummen visas när fältet lämnas för att undvika att markören flyttas under inmatning. Decimaler bevaras utan avrundning. Årtal och slumpfrö formateras inte som belopp.
+
+## Effekt jämförd med nuläge
+
+Tre effekter kontrolleras medan användaren skriver: tillskottsvatten, källaröversvämningar och bräddning. Minskningens högsta angivna värde jämförs med nulägets lägsta angivna värde enligt motorns befintliga regel för oberoende osäkerhetsfördelningar. Fasta värden jämförs direkt. Varningen visar värden och enhet, markerar effektens rad och uppdateras även vid ändrat nuläge. Inaktiva alternativ och bortvalda effekter/områden ger ingen sådan varning. Saknade jämförelsevärden tolkas inte som noll; ordinarie fullständighetskontroll vid Beräkna kvarstår. Kostnadsminskningar härleds inte från dessa mängdjämförelser. Inga nya beslut krävs.

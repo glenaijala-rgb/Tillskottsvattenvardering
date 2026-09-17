@@ -80,6 +80,33 @@ async function api(path: string, method = "GET", body?: unknown) {
 }
 type FieldIssue = { path: string; message: string };
 const IssueContext = createContext<FieldIssue[]>([]);
+function effectIssues(project: Project | null): FieldIssue[] {
+  if (!project) return [];
+  const issues: FieldIssue[] = [];
+  const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+  const pairs = [
+    ["volume", "volume_reduction", "tillskottsvatten", "m³/år", ""],
+    ["floods", "flood_reduction", "källaröversvämningar", "st/år", "Källaröversvämningar"],
+    ["overflow", "overflow_reduction", "bräddning", "m³/år", "Bräddning"],
+  ];
+  project.alternatives.forEach((alt, index) => {
+    if (!alt.active) return;
+    pairs.forEach(([baseKey, key, label, unit, group]) => {
+      const base = project.baseline[baseKey];
+      const reduction = alt.params[key];
+      if (!base || !reduction || reduction.excluded || project.excluded_groups?.includes(group)) return;
+      const limit = base.low ?? base.mode;
+      const entered = reduction.high ?? reduction.mode;
+      if (!finite(limit) || !finite(entered) || limit < 0 || entered <= limit) return;
+      const uncertain = base.low != null || base.high != null || reduction.low != null || reduction.high != null;
+      const message = uncertain
+        ? `Minskningen av ${label} är som högst ${fmt(entered, 10)} ${unit}, men nulägets lägsta värde är bara ${fmt(limit, 10)} ${unit}. Minskningens max får inte överstiga nulägets min; annars kan simuleringen ge ett negativt antal eller en negativ volym efter åtgärden.`
+        : `Du anger en minskning av ${label} med ${fmt(entered, 10)} ${unit}, men i nuläget finns bara ${fmt(limit, 10)} ${unit}. Det går inte att ta bort mer än vad som finns idag.`;
+      issues.push({ path: `alternatives.${index}.params.${key}`, message });
+    });
+  });
+  return issues;
+}
 function FieldValidation({
   path,
   children,
@@ -1546,7 +1573,12 @@ function App() {
     [showArchived, setShowArchived] = useState(false),
     [backups, setBackups] = useState<string[]>([]),
     [backupChoice, setBackupChoice] = useState("");
-  const [fieldIssues, setFieldIssues] = useState<FieldIssue[]>([]);
+  const [serverIssues, setFieldIssues] = useState<FieldIssue[]>([]);
+  // These comparisons are recalculated as either the baseline or effect changes.
+  const fieldIssues = [
+    ...serverIssues.filter((issue) => !issue.message.includes("maximal minskning för")),
+    ...effectIssues(project),
+  ];
   useEffect(() => {
     setFieldIssues([]);
   }, [
@@ -1963,9 +1995,8 @@ function App() {
             </nav>
             {fieldIssues.length > 0 && (
               <p className="validation-summary" role="status">
-                Markerade fält behöver kontrolleras. Feltexterna gäller senaste
-                beräkningsförsöket. När du har rättat uppgifterna, välj Beräkna
-                igen.
+                Markerade fält behöver kontrolleras. Effekterna jämförs direkt
+                med nuläget. Övriga fel uppdateras när du väljer Beräkna igen.
               </p>
             )}
             <IssueContext.Provider value={fieldIssues}>

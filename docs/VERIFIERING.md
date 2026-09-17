@@ -80,3 +80,7 @@ TypeScript och produktionsbygge godkända. Kontrollerat i osparat syntetiskt pro
 ## Tusentalsavgränsning i beloppsfält
 
 Beloppsfält med kr i enheten visar tusentalsmellanrum när de inte redigeras. Vid fokus visas värdet utan avgränsare. Formatering sker utan avrundning; befintlig parser accepterar mellanrum och decimalcomma. TypeScript och produktionsbygge godkända. Webbläsartest i osparat nytt projekt: 1500000,75 visas som 1 500 000,75, återfokus visar 1500000,75, inklistrat 2 345 678,90 visas som 2 345 678,9. Beräkningsvärden är fortsatt numeriska. Befintliga användarprojekt ändrades inte.
+
+## Direkt rimlighetskontroll av effekter
+
+TypeScript och produktionsbygge godkända. Webbläsartest i osparat nytt projekt: nuläge 100 m³ tillskottsvatten, 2 källaröversvämningar och 50 m³ bräddning per år; minskningar 101, 3 respektive 51 markerades direkt med aktuella jämförelsevärden, title och aria-invalid. Minskning 2 mot 2 accepterades och felmarkering försvann. Intervall 1/2/3 mot nuläge 2 gav särskild förklaring om max/min och negativa utfall. Bortval tog bort varningen. Höjt nuläge till 200 tog bort volymvarningen utan att påverka bräddningsvarningen. Ingen befintlig projektdata sparades eller ändrades. Beräkningsmotorns befintliga spärr är oförändrad.
