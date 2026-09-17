@@ -56,3 +56,7 @@ API:t returnerar läsbara fel och stabila fältsökvägar, även för alternativ
 ## Inte aktuellt – verifiering
 
 49 automatiska tester godkända. Fyra nya tester kontrollerar att bortval med saknade värden kan beräknas, originalvärden och input_hash bevaras, återaktivering återställer krav på indata, bortvald kostnad motsvarar explicit noll utan att radera inmatningen och obligatorisk volym inte kan väljas bort. TypeScript och produktionsbygge godkända. Webbläsarkontroll: källaröversvämningsområdet fälls ihop, värdet 12345 återkommer vid aktivering, motsvarande åtgärdseffekt blir bortvald, tom trafikpost kan uttryckligen väljas bort, beräkning lyckas med NNV 1323 kr, bortval redovisas i resultatet och finns kvar efter omladdning. Syntetiskt testprojekt arkiverat. Befintliga användarprojekt ändrades inte.
+
+## Startvärden, inställningar och enhetlig information
+
+51 tester godkända, inklusive två nya tester för startvärden, ursprungsmarkering, separata projektdata och oförändrat syntetiskt referensfall. TypeScript och produktionsbygge godkända. Kontrollerat i webbläsare: nytt projekt har koldioxidvärde 1; reningskostnaden har 0,63/0,95/4,7; slumpfrö är dolt tills Beräkningsinställningar öppnas; informationsrutan visar bakgrund, exempelvärden och källrad; ändrat värde ger avvikelseinformation; byggnadsandelarnas fält finns i Källaröversvämningar och försvinner när området väljs bort. Testet gjordes i ett osparat nytt projekt. Inga befintliga projektdata ändrades.

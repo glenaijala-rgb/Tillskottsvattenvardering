@@ -157,7 +157,11 @@ function Parameters({
   errorScope,
   excludedGroups = [],
   onGroupToggle,
+  groupContent,
+  examples = {},
 }: {
+  groupContent?: (group: string) => React.ReactNode;
+  examples?: Record<string, [number | null, number, number | null]>;
   excludedGroups?: string[];
   onGroupToggle?: (group: string, excluded: boolean) => void;
   errorScope?: string;
@@ -192,6 +196,7 @@ function Parameters({
           </div>
           {!(onGroupToggle && excludedGroups.includes(group)) && (
             <>
+              {groupContent?.(group)}
               <div className="parameter-head">
                 <span>Uppgift</span>
                 <span>Min</span>
@@ -280,15 +285,6 @@ function Parameters({
                         {help[key] && (
                           <div className="field-help">
                             <p>{help[key][0]}</p>
-                            <details>
-                              <summary>
-                                Läs mer om {label.toLowerCase()}
-                              </summary>
-                              <p>{help[key][1]}</p>
-                              <small>
-                                Bearbetat från grundfilens Vägledning.
-                              </small>
-                            </details>
                           </div>
                         )}
                         {key === "arv_ground" && (
@@ -300,11 +296,53 @@ function Parameters({
                           </p>
                         )}
                         {support?.(key)}
-                        <details>
-                          <summary>
-                            Källa och kommentar
-                            {p.source ? " · " + p.source : ""}
+                        <details className="field-info">
+                          <summary aria-label={"Information om " + label}>
+                            <span className="info-icon" aria-hidden="true">
+                              i
+                            </span>{" "}
+                            Information
                           </summary>
+                          {help[key] && (
+                            <>
+                              <p>{help[key][1]}</p>
+                              <small>
+                                Bearbetat från grundfilens Vägledning.
+                              </small>
+                            </>
+                          )}
+                          {examples[key] && (
+                            <div className="example-info">
+                              <h4>Startvärde från Göteborgsexemplet</h4>
+                              <p>
+                                Min:{" "}
+                                {examples[key][0] === null
+                                  ? "–"
+                                  : fmt(examples[key][0], 5)}{" "}
+                                · Mest troligt: {fmt(examples[key][1], 5)} ·
+                                Max:{" "}
+                                {examples[key][2] === null
+                                  ? "–"
+                                  : fmt(examples[key][2], 5)}{" "}
+                                {unit}.
+                              </p>
+                              <p>
+                                Källa: TSV KNA.xlsb, blad Nuläge,
+                                exempelkolumner G–I, rad{" "}
+                                {fields.find((f) => f[0] === key)?.[4]}.
+                                Historiska exempel, inte aktuella
+                                rekommendationer. Kontrollera att de passar ditt
+                                område.
+                              </p>
+                              <p>
+                                {[p.low, p.mode, p.high].every(
+                                  (value, i) => value === examples[key][i],
+                                )
+                                  ? "Fältets värden överensstämmer med Göteborgsexemplet."
+                                  : "Fältets värden skiljer sig från Göteborgsexemplet."}
+                              </p>
+                            </div>
+                          )}
                           <label className="field">
                             Källa
                             <input
@@ -1725,7 +1763,6 @@ function App() {
                             ["end", "Slutår", "år"],
                             ["rate", "Diskonteringsränta", "%"],
                             ["carbon", "Koldioxidvärdering", "kr/kg CO₂e"],
-                            ["seed", "Slumpfrö", ""],
                           ] as const
                         ).map(([k, l, u]) => (
                           <NumberField
@@ -1741,82 +1778,101 @@ function App() {
                             }
                           />
                         ))}
-                        <FieldValidation path={"analysis.iterations"}>
-                          <label className="field">
-                            Simuleringar
-                            <select
-                              value={project.analysis.iterations}
-                              onChange={(e) =>
-                                patch({
-                                  analysis: {
-                                    ...project.analysis,
-                                    iterations: Number(e.target.value),
-                                  },
-                                })
-                              }
-                            >
-                              <option value={1000}>1 000</option>
-                              <option value={10000}>10 000</option>
-                            </select>
-                          </label>
-                        </FieldValidation>
-                        <NumberField
-                          errorPath="small_share"
-                          label="Andel mindre byggnader bland de översvämmade"
-                          unit="%"
-                          value={project.small_share}
-                          onChange={(v) => patch({ small_share: v as number })}
-                        />
-                        <div className="field">
-                          Andel större byggnader
-                          <strong>{fmt(100 - project.small_share, 2)} %</strong>
-                        </div>
                       </div>
+                      <p className="muted">
+                        Koldioxidvärderingen börjar på 1 kr/kg CO₂e i nya
+                        projekt och kan ändras.
+                      </p>
+                      <details
+                        className="calculation-settings"
+                        open={
+                          fieldIssues.some((e) =>
+                            ["analysis.seed", "analysis.iterations"].includes(
+                              e.path,
+                            ),
+                          )
+                            ? true
+                            : undefined
+                        }
+                      >
+                        <summary>Beräkningsinställningar</summary>
+                        <p>
+                          Slumpfröet gör beräkningen reproducerbar. Fler
+                          simuleringar ger stabilare numeriska resultat men gör
+                          inte antagandena säkrare.
+                        </p>
+                        <div className="grid">
+                          <NumberField
+                            label="Slumpfrö"
+                            errorPath="analysis.seed"
+                            value={project.analysis.seed}
+                            onChange={(v) =>
+                              patch({
+                                analysis: {
+                                  ...project.analysis,
+                                  seed: v as number,
+                                },
+                              })
+                            }
+                          />
+                          <FieldValidation path={"analysis.iterations"}>
+                            <label className="field">
+                              Simuleringar
+                              <select
+                                value={project.analysis.iterations}
+                                onChange={(e) =>
+                                  patch({
+                                    analysis: {
+                                      ...project.analysis,
+                                      iterations: Number(e.target.value),
+                                    },
+                                  })
+                                }
+                              >
+                                <option value={1000}>1 000</option>
+                                <option value={10000}>10 000</option>
+                              </select>
+                            </label>
+                          </FieldValidation>
+                        </div>
+                      </details>
                       <p className="muted">
                         Startåret är år 0. Årliga effekter räknas till och med
                         slutåret. Ett sparat slumpfrö gör resultaten
                         reproducerbara.
                       </p>
                     </section>
-                    <section className="card">
-                      <h2>Exempelvärden från grundfilen</h2>
-                      <p>
-                        Historiska Göteborgsexempel kan kopieras till tomma
-                        fält. De är inte aktuella rekommendationer och måste
-                        bedömas för ditt område. Dina redan ifyllda värden
-                        ersätts inte.
-                      </p>
-                      <button
-                        onClick={() => {
-                          const baseline = structuredClone(project.baseline);
-                          for (const [key, values] of Object.entries(
-                            catalog.examples,
-                          ) as [
-                            string,
-                            [number | null, number, number | null],
-                          ][]) {
-                            if (
-                              baseline[key].mode === null &&
-                              baseline[key].low === null &&
-                              baseline[key].high === null
-                            ) {
-                              baseline[key] = {
-                                low: values[0],
-                                mode: values[1],
-                                high: values[2],
-                                source:
-                                  "Göteborgsexempel i TSV KNA.xlsb, aktualitet ej verifierad",
-                                note: "Kontrollera lämplighet för det egna området.",
-                              };
-                            }
-                          }
-                          patch({ baseline });
-                        }}
-                      >
-                        Kopiera exempel till tomma fält
-                      </button>
-                    </section>
                     <Parameters
+                      examples={catalog.examples}
+                      groupContent={(group) =>
+                        group === "Källaröversvämningar" ? (
+                          <div className="flood-shares">
+                            <h3>Fördelning av översvämmade byggnader</h3>
+                            <p>
+                              Andelen avser mindre byggnader, exempelvis småhus.
+                              Resterande andel räknas som större byggnader.
+                            </p>
+                            <div className="grid">
+                              {" "}
+                              <NumberField
+                                errorPath="small_share"
+                                label="Andel mindre byggnader bland de översvämmade"
+                                unit="%"
+                                value={project.small_share}
+                                onChange={(v) =>
+                                  patch({ small_share: v as number })
+                                }
+                              />
+                              <div className="field">
+                                Andel större byggnader
+                                <strong>
+                                  {fmt(100 - project.small_share, 2)} %
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null
+                      }
                       support={(key) => {
                         const kind = { floods: "flood", arv_ground: "arv" }[
                           key

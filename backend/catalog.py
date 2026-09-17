@@ -112,12 +112,17 @@ def blank_project():
             "start": 2030,
             "end": 2040,
             "rate": 3.0,
-            "carbon": None,
+            "carbon": 1.0,
             "seed": 20260917,
             "iterations": 1000,
         },
         "small_share": 100.0,
-        "baseline": {x[0]: parameter() for x in BASE},
+        "baseline": {
+            x[0]: dict(low=EXAMPLES[x[0]][0], mode=EXAMPLES[x[0]][1], high=EXAMPLES[x[0]][2],
+                       source="Göteborgsexempel i TSV KNA.xlsb, aktualitet ej verifierad",
+                       note="Startvärde. Kontrollera lämplighet för det egna området.")
+            if x[0] in EXAMPLES else parameter() for x in BASE
+        },
         "alternatives": [
             {
                 "id": str(i),
@@ -141,7 +146,7 @@ def example_project():
     p["analysis"]["carbon"] = 4
     for group in [p["baseline"]] + [a["params"] for a in p["alternatives"]]:
         for item in group.values():
-            item.update(mode=0, source="Syntetiskt typfall T02")
+            item.update(low=None, mode=0, high=None, source="Syntetiskt typfall T02", note="")
     p["baseline"]["volume"]["mode"] = 1000
     p["baseline"]["treatment"]["mode"] = 2
     p["alternatives"][0]["params"]["volume_reduction"]["mode"] = 100

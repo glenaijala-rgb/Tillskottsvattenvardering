@@ -714,6 +714,13 @@ a {
   gap: 12px;
   flex-wrap: wrap;
 }
+.field-info > summary { display: flex; align-items: center; gap: 7px; width: fit-content; color: #31594b; }
+.info-icon { display: inline-flex; align-items: center; justify-content: center; border: 1px solid currentColor; border-radius: 50%; width: 19px; height: 19px; font-weight: 600; font-family: Georgia, serif; }
+.field-info[open] { background: #f3f6f2; padding: 12px 16px; border-radius: 6px; }
+.example-info { padding: 8px 0; border-bottom: 1px solid #dbe4dc; margin-bottom: 12px; }
+.example-info h4 { margin: 8px 0; }
+.calculation-settings { margin: 16px 0; }
+.flood-shares { margin-bottom: 24px; }
 .section-title h2 {
   margin-bottom: 12px;
 }

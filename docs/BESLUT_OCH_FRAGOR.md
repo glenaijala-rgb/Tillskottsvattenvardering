@@ -54,3 +54,7 @@ Ingen fråga nedan kräver ett svar för att öppna och prova den lokala appen.
 ## Inte aktuellt – arbetsbeslut
 
 Kompakta val på områdesnivå i nuläget och för enskilda valbara poster i åtgärder. Bortval innebär att posten inte bidrar till beräkningen; det är ett uttryckligt användarval, inte en tolkning av tomma fält. Beräkningen använder en separat kopia med dessa bidrag nollställda. Originalvärden, stöddata och indatahash bevaras. Områdesbortval gäller alla alternativ för en konsekvent jämförelse. Befintliga projekt behåller sitt tidigare beteende. Beräkningsversion höjd till 1.1.0 för spårbarhet.
+
+## Startvärden och information – UI-beslut
+
+Enligt användarens önskemål sätts koldioxidvärdering 1 och Göteborgsexempel som startvärden i nya projekt. Sparade projekt lämnas oförändrade. Bakgrund, historiska exempelvärden, cellkälla och redigerbar källa/kommentar samlas under en gemensam informationskontroll. Syntetiska typfall behåller sina separata testvärden. Slumpfrö och antal simuleringar flyttas till utfällbara inställningar. Byggnadsandelar flyttas till området Källaröversvämningar. Inga nya frågor behöver avgöras.

@@ -18,7 +18,7 @@ Exemplet är testdata. Det är inte en värdering av ett verkligt område.
 2. Fyll i **Nuläge**. Välj **Inte aktuellt** vid områdesrubriken eller posten om den inte ingår. Tomma aktiva fält betyder att en uppgift saknas.
 3. Ett säkert värde anges bara i **Mest troligt**. För ett osäkert värde anges även **Min** och **Max**.
 4. Fyll i **Åtgärder**. Aktivera de alternativ du vill jämföra.
-5. Välj **Beräkna med stöd** vid det aktuella fältet. Stödvärden förs över först när du väljer **Använd**. Läs fältets korta förklaring eller fäll ut **Läs mer**.
+5. Välj **Beräkna med stöd** vid det aktuella fältet. Stödvärden förs över först när du väljer **Använd**. Läs fältets korta förklaring eller öppna **ⓘ Information**.
 6. Välj **Spara projekt** när du vill spara arbetet, även om det inte är färdigt.
 7. Välj **Beräkna** när underlaget är komplett. Saknade eller felaktiga uppgifter visas i ett meddelande.
 
@@ -61,3 +61,11 @@ Små kryssrutor **Inte aktuellt** finns vid områdena Rening, Pumpning, Källar�
 Ett bortvalt område i nuläget gäller hela jämförelsen. Om källaröversvämningar eller bräddning inte ingår, utelämnas även motsvarande minskning i samtliga åtgärder. Enskilda bortval i en åtgärd gäller bara den åtgärden. Analysförutsättningar och volym tillskottsvatten behöver fortfarande anges.
 
 Resultatet redovisar bortvalen under **Ingår inte i värderingen**, även i utskriftsunderlaget. De sparas med projektet och varje resultatkörning. Äldre projekt ändras inte automatiskt: tidigare nollor ligger kvar tills du väljer något annat.
+
+## Startvärden och information
+
+Nya projekt börjar med koldioxidvärderingen **1 kr/kg CO₂e**. Fält som har Göteborgsexempel i grundfilen fylls automatiskt med exemplets min-, trolig- och maxvärden. Startvärdena är redigerbara. Uppgifter utan exempel, exempelvis volym tillskottsvatten, behöver fortfarande fyllas i. Befintliga projekt och sparade resultat ändras inte.
+
+Öppna **ⓘ Information** vid ett fält för fördjupning, källa och kommentar. Där visas också Göteborgsexemplets ursprungliga värden med enhet och cellrad i grundfilen samt om dina värden avviker. Exemplen är historiska och behöver bedömas för ditt område. Knappen för att kopiera exempelvärden har tagits bort.
+
+**Slumpfrö** och **Simuleringar** finns under **Beräkningsinställningar** i Nuläge. Inställningarna är normalt hopfällda och behöver oftast inte ändras. Andel mindre/större översvämmade byggnader finns under **Källaröversvämningar** och döljs tillsammans med området om det markeras Inte aktuellt.
