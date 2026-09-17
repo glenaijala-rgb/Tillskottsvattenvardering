@@ -1,12 +1,13 @@
 """Versioned, deterministic cost-benefit engine. No UI or database dependencies."""
 
+import copy
 import hashlib
 import json
 import math
 import numpy as np
 from .catalog import BASE, ALT, CATEGORIES
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 class InputError(ValueError):
@@ -41,7 +42,39 @@ def bounds(p):
     return (p["mode"], p["mode"]) if p.get("low") is None else (p["low"], p["high"])
 
 
+EXCLUDABLE_GROUPS = {"Rening", "Pumpning", "Källaröversvämningar", "Bräddning"}
+EXCLUDABLE_FIELDS = {"other", "investment", "construction_co2", "traffic", "renewal", "other_cost", "other_benefit", "flood_reduction", "overflow_reduction"}
+
+def effective_project(original):
+    """Exclude explicitly chosen items on a copy; preserve original inputs and provenance."""
+    p = copy.deepcopy(original)
+    if not isinstance(p, dict):
+        return p
+    groups = p.get("excluded_groups", [])
+    if not isinstance(groups, list) or any(not isinstance(g, str) or g not in EXCLUDABLE_GROUPS for g in groups):
+        raise InputError(["Ogiltigt val av områden som inte är aktuella."])
+    alternatives = p.get("alternatives", [])
+    if not isinstance(alternatives, list):
+        alternatives = []
+    for group, catalog in [(p.get("baseline", {}), BASE)] + [(a.get("params", {}), ALT) for a in alternatives if isinstance(a, dict)]:
+        if not isinstance(group, dict):
+            continue
+        for key, _, _, category, _ in catalog:
+            item = group.get(key)
+            by_group = catalog is BASE and category in groups
+            inherited = catalog is ALT and ((key == "flood_reduction" and "Källaröversvämningar" in groups) or (key == "overflow_reduction" and "Bräddning" in groups))
+            excluded = isinstance(item, dict) and item.get("excluded") is True
+            if excluded and key not in EXCLUDABLE_FIELDS:
+                raise InputError(["Denna uppgift kan inte väljas bort: " + key])
+            if by_group or inherited or excluded:
+                group[key] = dict(low=None, mode=0, high=None, source="Inte aktuellt", note="")
+    if "Källaröversvämningar" in groups:
+        p["small_share"] = 100
+    return p
+
+
 def validate(p):
+    p = effective_project(p)
     errors = ValidationErrors()
     errors.paths = ["name"]
     if not isinstance(p, dict):
@@ -234,7 +267,9 @@ def operating(b, volume, floods, overflow, small, carbon, other):
 
 
 def calculate(p):
+    original = p
     validate(p)
+    p = effective_project(p)
     settings = p["analysis"]
     n = settings["iterations"]
     r = settings["rate"] / 100
@@ -267,7 +302,7 @@ def calculate(p):
         "iterations": n,
         "percentile_method": "weibull / Excel PERCENTILE.EXC",
         "input_hash": hashlib.sha256(
-            json.dumps(p, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()
+            json.dumps(original, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()
         ).hexdigest(),
         "baseline": {k: summary(v) for k, v in before.items()},
         "alternatives": [],

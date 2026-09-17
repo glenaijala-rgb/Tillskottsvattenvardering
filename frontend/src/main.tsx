@@ -10,6 +10,7 @@ import "./style.css";
 import { help } from "./help";
 
 type P = {
+  excluded?: boolean;
   low: number | null;
   mode: number | null;
   high: number | null;
@@ -28,6 +29,7 @@ type Alternative = {
   params: Record<string, P>;
 };
 type Project = {
+  excluded_groups?: string[];
   name: string;
   area: string;
   notes: string;
@@ -153,7 +155,11 @@ function Parameters({
   onChange,
   support,
   errorScope,
+  excludedGroups = [],
+  onGroupToggle,
 }: {
+  excludedGroups?: string[];
+  onGroupToggle?: (group: string, excluded: boolean) => void;
   errorScope?: string;
   support?: (key: string) => React.ReactNode;
   fields: Field[];
@@ -164,94 +170,166 @@ function Parameters({
     <>
       {[...new Set(fields.map((x) => x[3]))].map((group) => (
         <section className="card" key={group}>
-          <h2>{group}</h2>
-          <div className="parameter-head">
-            <span>Uppgift</span>
-            <span>Min</span>
-            <span>Mest troligt</span>
-            <span>Max</span>
+          <div className="section-title">
+            <h2>{group}</h2>
+            {onGroupToggle &&
+              [
+                "Rening",
+                "Pumpning",
+                "Källaröversvämningar",
+                "Bräddning",
+              ].includes(group) && (
+                <label className="exclude-choice">
+                  <input
+                    type="checkbox"
+                    aria-label={group + ": Inte aktuellt"}
+                    checked={excludedGroups.includes(group)}
+                    onChange={(e) => onGroupToggle(group, e.target.checked)}
+                  />
+                  Inte aktuellt
+                </label>
+              )}
           </div>
-          {fields
-            .filter((x) => x[3] === group)
-            .map(([key, label, unit]) => {
-              const p = values[key];
-              return (
-                <FieldValidation
-                  key={key}
-                  path={errorScope ? errorScope + "." + key : undefined}
-                >
-                  <div className="parameter">
-                    <div className="parameter-row">
-                      <div>
+          {!(onGroupToggle && excludedGroups.includes(group)) && (
+            <>
+              <div className="parameter-head">
+                <span>Uppgift</span>
+                <span>Min</span>
+                <span>Mest troligt</span>
+                <span>Max</span>
+              </div>
+              {fields
+                .filter((x) => x[3] === group)
+                .map(([key, label, unit]) => {
+                  const p = values[key];
+                  const inherited =
+                    (key === "flood_reduction" &&
+                      excludedGroups.includes("Källaröversvämningar")) ||
+                    (key === "overflow_reduction" &&
+                      excludedGroups.includes("Bräddning"));
+                  const canExclude =
+                    !!errorScope &&
+                    [
+                      "other",
+                      "investment",
+                      "construction_co2",
+                      "traffic",
+                      "renewal",
+                      "other_cost",
+                      "other_benefit",
+                      "flood_reduction",
+                      "overflow_reduction",
+                    ].includes(key);
+                  const excluded = inherited || p.excluded === true;
+                  const choice = canExclude && (
+                    <label className="exclude-choice">
+                      <input
+                        type="checkbox"
+                        aria-label={label + ": Inte aktuellt"}
+                        checked={excluded}
+                        disabled={inherited}
+                        onChange={(e) =>
+                          onChange(key, { ...p, excluded: e.target.checked })
+                        }
+                      />
+                      {inherited ? "Inte aktuellt i nuläget" : "Inte aktuellt"}
+                    </label>
+                  );
+                  if (excluded)
+                    return (
+                      <div className="excluded-row" key={key}>
                         <strong>{label}</strong>
-                        <small>{unit}</small>
+                        {choice}
                       </div>
-                      {(["low", "mode", "high"] as const).map((k) => (
-                        <NumberField
-                          key={k}
-                          label={`${label}, ${{ low: "min", mode: "mest troligt", high: "max" }[k]}`}
-                          value={p[k]}
-                          onChange={(v) =>
-                            onChange(key, {
-                              ...p,
-                              [k]: v,
-                              derived: undefined,
-                              source: p.source.startsWith("Beräkningshjälp:")
-                                ? "Eget värde"
-                                : p.source,
-                              note: p.source.startsWith("Beräkningshjälp:")
-                                ? "Manuellt ändrat; tidigare stödberäkning finns kvar som underlag."
-                                : p.note,
-                            })
-                          }
-                        />
-                      ))}
-                    </div>
-                    {help[key] && (
-                      <div className="field-help">
-                        <p>{help[key][0]}</p>
+                    );
+                  return (
+                    <FieldValidation
+                      key={key}
+                      path={errorScope ? errorScope + "." + key : undefined}
+                    >
+                      <div className="parameter">
+                        <div className="parameter-row">
+                          <div>
+                            <strong>{label}</strong>
+                            <small>{unit}</small>
+                            {choice}
+                          </div>
+                          {(["low", "mode", "high"] as const).map((k) => (
+                            <NumberField
+                              key={k}
+                              label={`${label}, ${{ low: "min", mode: "mest troligt", high: "max" }[k]}`}
+                              value={p[k]}
+                              onChange={(v) =>
+                                onChange(key, {
+                                  ...p,
+                                  [k]: v,
+                                  derived: undefined,
+                                  source: p.source.startsWith(
+                                    "Beräkningshjälp:",
+                                  )
+                                    ? "Eget värde"
+                                    : p.source,
+                                  note: p.source.startsWith("Beräkningshjälp:")
+                                    ? "Manuellt ändrat; tidigare stödberäkning finns kvar som underlag."
+                                    : p.note,
+                                })
+                              }
+                            />
+                          ))}
+                        </div>
+                        {help[key] && (
+                          <div className="field-help">
+                            <p>{help[key][0]}</p>
+                            <details>
+                              <summary>
+                                Läs mer om {label.toLowerCase()}
+                              </summary>
+                              <p>{help[key][1]}</p>
+                              <small>
+                                Bearbetat från grundfilens Vägledning.
+                              </small>
+                            </details>
+                          </div>
+                        )}
+                        {key === "arv_ground" && (
+                          <p className="notice">
+                            Marginalvärdena ska inte användas vid stora
+                            flödesförändringar, exempelvis när allt
+                            tillskottsvatten tas bort. ARV-metoden är ännu inte
+                            slutligt granskad.
+                          </p>
+                        )}
+                        {support?.(key)}
                         <details>
-                          <summary>Läs mer om {label.toLowerCase()}</summary>
-                          <p>{help[key][1]}</p>
-                          <small>Bearbetat från grundfilens Vägledning.</small>
+                          <summary>
+                            Källa och kommentar
+                            {p.source ? " · " + p.source : ""}
+                          </summary>
+                          <label className="field">
+                            Källa
+                            <input
+                              value={p.source}
+                              onChange={(e) =>
+                                onChange(key, { ...p, source: e.target.value })
+                              }
+                            />
+                          </label>
+                          <label className="field">
+                            Kommentar
+                            <input
+                              value={p.note}
+                              onChange={(e) =>
+                                onChange(key, { ...p, note: e.target.value })
+                              }
+                            />
+                          </label>
                         </details>
                       </div>
-                    )}
-                    {key === "arv_ground" && (
-                      <p className="notice">
-                        Marginalvärdena ska inte användas vid stora
-                        flödesförändringar, exempelvis när allt tillskottsvatten
-                        tas bort. ARV-metoden är ännu inte slutligt granskad.
-                      </p>
-                    )}
-                    {support?.(key)}
-                    <details>
-                      <summary>
-                        Källa och kommentar{p.source ? " · " + p.source : ""}
-                      </summary>
-                      <label className="field">
-                        Källa
-                        <input
-                          value={p.source}
-                          onChange={(e) =>
-                            onChange(key, { ...p, source: e.target.value })
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        Kommentar
-                        <input
-                          value={p.note}
-                          onChange={(e) =>
-                            onChange(key, { ...p, note: e.target.value })
-                          }
-                        />
-                      </label>
-                    </details>
-                  </div>
-                </FieldValidation>
-              );
-            })}
+                    </FieldValidation>
+                  );
+                })}
+            </>
+          )}
         </section>
       ))}
     </>
@@ -775,6 +853,19 @@ function Results({
     );
   const r = run.result,
     alts = r.alternatives;
+  const excluded = [
+    ...(run.input.excluded_groups || []).map(
+      (name: string) => name + " (alla åtgärder)",
+    ),
+    ...[
+      { name: "Nuläge", params: run.input.baseline },
+      ...run.input.alternatives.filter((a: Alternative) => a.active),
+    ].flatMap((g: { name: string; params: Record<string, P> }) =>
+      Object.entries(g.params)
+        .filter(([, v]) => v.excluded)
+        .map(([key]) => `${g.name}: ${inputLabels[key] || key}`),
+    ),
+  ];
   return (
     <div className="report">
       <header className="intro">
@@ -792,6 +883,20 @@ function Results({
           Skriv ut / spara PDF
         </button>
       </header>
+      {excluded.length > 0 && (
+        <section className="card">
+          <h2>Ingår inte i värderingen</h2>
+          <p>
+            Följande har markerats som Inte aktuellt och bidrar inte till
+            resultatet:
+          </p>
+          <ul>
+            {excluded.map((text: string, i: number) => (
+              <li key={i}>{text}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       {stale && (
         <div className="notice">
           Indata har ändrats sedan denna beräkning. Resultatet visar den sparade
@@ -995,6 +1100,9 @@ function InputReport({
   return (
     <>
       <p>
+        Områden som inte ingår: {project.excluded_groups?.join(", ") || "Inga"}.
+      </p>
+      <p>
         Andel mindre byggnader: {project.small_share} %. Koldioxidvärdering:{" "}
         {project.analysis.carbon} kr/kg CO₂e.
       </p>
@@ -1018,17 +1126,52 @@ function InputReport({
               </tr>
             </thead>
             <tbody>
-              {Object.entries(g.params).map(([k, v]) => (
-                <tr key={k}>
-                  <td>{labels[k] || k}</td>
-                  <td>{v.low ?? "–"}</td>
-                  <td>{v.mode ?? "–"}</td>
-                  <td>{v.high ?? "–"}</td>
-                  <td>
-                    {v.source} {v.note}
-                  </td>
-                </tr>
-              ))}
+              {Object.entries(g.params).map(([k, v]) => {
+                const group = {
+                  treatment: "Rening",
+                  treatment_co2: "Rening",
+                  arv_ground: "Rening",
+                  arv_slow: "Rening",
+                  arv_fast: "Rening",
+                  energy: "Pumpning",
+                  electricity: "Pumpning",
+                  electricity_co2: "Pumpning",
+                  floods: "Källaröversvämningar",
+                  damage_small: "Källaröversvämningar",
+                  damage_large: "Källaröversvämningar",
+                  social_small: "Källaröversvämningar",
+                  social_large: "Källaröversvämningar",
+                  overflow: "Bräddning",
+                  overflow_internal: "Bräddning",
+                  overflow_external: "Bräddning",
+                  flood_reduction: "Källaröversvämningar",
+                  overflow_reduction: "Bräddning",
+                }[k];
+                const excluded =
+                  v.excluded ||
+                  (group &&
+                    project.excluded_groups?.includes(group) &&
+                    (i === 0 ||
+                      ["flood_reduction", "overflow_reduction"].includes(k)));
+                return excluded ? (
+                  <tr key={k}>
+                    <td>{labels[k] || k}</td>
+                    <td colSpan={4}>
+                      Inte aktuellt – ingår inte i beräkningen
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={k}>
+                    <td>{labels[k] || k}</td>
+                    <td>{v.low ?? "–"}</td>
+                    <td>{v.mode ?? "–"}</td>
+                    <td>{v.high ?? "–"}</td>
+                    <td>
+                      {v.source} {v.note}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1051,6 +1194,21 @@ function App() {
     [backups, setBackups] = useState<string[]>([]),
     [backupChoice, setBackupChoice] = useState("");
   const [fieldIssues, setFieldIssues] = useState<FieldIssue[]>([]);
+  useEffect(() => {
+    setFieldIssues([]);
+  }, [
+    JSON.stringify(project?.excluded_groups),
+    JSON.stringify(
+      [
+        project?.baseline,
+        ...(project?.alternatives.map((a) => a.params) || []),
+      ].map((params) =>
+        Object.entries(params || {})
+          .filter(([, v]) => v.excluded)
+          .map(([k]) => k),
+      ),
+    ),
+  ]);
   const dirty =
     !!project && JSON.stringify(project) !== JSON.stringify(saved?.data);
   const refresh = async () => setProjects(await api("/projects"));
@@ -1510,9 +1668,10 @@ function App() {
                         samhällseffekter.
                       </p>
                       <p>
-                        Fyll i alla relevanta värden. Skriv 0 där en post inte
-                        är aktuell. Lämna min och max tomma för ett fast värde.
-                        Du kan spara även när uppgifter saknas.
+                        Fyll i relevanta uppgifter. Välj Inte aktuellt för
+                        områden eller poster som inte ingår. Tomma fält betyder
+                        att uppgiften saknas. Lämna min och max tomma för ett
+                        fast värde. Du kan spara även när uppgifter saknas.
                       </p>
                       <p className="notice">
                         Versionen är under verifiering mot Excel-grundfilen.
@@ -1672,6 +1831,17 @@ function App() {
                           />
                         ) : null;
                       }}
+                      excludedGroups={project.excluded_groups || []}
+                      onGroupToggle={(group, excluded) => {
+                        patch({
+                          excluded_groups: excluded
+                            ? [...(project.excluded_groups || []), group]
+                            : (project.excluded_groups || []).filter(
+                                (g) => g !== group,
+                              ),
+                        });
+                        setFieldIssues([]);
+                      }}
                       errorScope="baseline"
                       fields={catalog?.baseline || []}
                       values={project.baseline}
@@ -1809,6 +1979,7 @@ function App() {
                           />
                         ) : null;
                       }}
+                      excludedGroups={project.excluded_groups || []}
                       errorScope={"alternatives." + altIndex + ".params"}
                       fields={catalog?.alternative || []}
                       values={alt.params}

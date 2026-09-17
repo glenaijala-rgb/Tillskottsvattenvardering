@@ -50,3 +50,7 @@ Ingen fråga nedan kräver ett svar för att öppna och prova den lokala appen.
 - Ledningslängder återanvänds från senast använda klimat-/trafikunderlag inom samma åtgärd. Uppdatering kräver uttrycklig beräkning och användning; den andra beräkningen ändras inte tyst. Tidigare värde märks när längderna skiljer sig.
 - Äldre projekts stöddata kan öppnas igen. Manuell ändring kopplar loss resultatet men bevarar historiskt stöd. Utkast i öppna stöd är tillfälliga tills Använd väljs; detta förklaras i gränssnittet.
 - Inga nya verksamhetsfrågor behöver avgöras för denna UI-ändring. Tidigare frågor om Excel och ARV kvarstår.
+
+## Inte aktuellt – arbetsbeslut
+
+Kompakta val på områdesnivå i nuläget och för enskilda valbara poster i åtgärder. Bortval innebär att posten inte bidrar till beräkningen; det är ett uttryckligt användarval, inte en tolkning av tomma fält. Beräkningen använder en separat kopia med dessa bidrag nollställda. Originalvärden, stöddata och indatahash bevaras. Områdesbortval gäller alla alternativ för en konsekvent jämförelse. Befintliga projekt behåller sitt tidigare beteende. Beräkningsversion höjd till 1.1.0 för spårbarhet.

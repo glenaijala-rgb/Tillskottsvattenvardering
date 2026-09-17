@@ -706,3 +706,32 @@ a {
   color: #9c231b;
   background: #fff5f3;
 }
+.section-title,
+.excluded-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-title h2 {
+  margin-bottom: 12px;
+}
+.exclude-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #56685f;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.exclude-choice input {
+  width: auto;
+  margin: 0;
+}
+.excluded-row {
+  padding: 12px 0;
+  color: #64746a;
+  border-bottom: 1px solid #e6ebe6;
+}

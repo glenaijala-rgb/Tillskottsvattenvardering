@@ -15,7 +15,7 @@ Exemplet är testdata. Det är inte en värdering av ett verkligt område.
 ## Skapa ett eget projekt
 
 1. Välj **Nytt projekt** och ange namn och område.
-2. Fyll i **Nuläge**. Ange 0 där en kostnad eller effekt inte är aktuell. Tomma fält betyder att en uppgift saknas.
+2. Fyll i **Nuläge**. Välj **Inte aktuellt** vid områdesrubriken eller posten om den inte ingår. Tomma aktiva fält betyder att en uppgift saknas.
 3. Ett säkert värde anges bara i **Mest troligt**. För ett osäkert värde anges även **Min** och **Max**.
 4. Fyll i **Åtgärder**. Aktivera de alternativ du vill jämföra.
 5. Välj **Beräkna med stöd** vid det aktuella fältet. Stödvärden förs över först när du väljer **Använd**. Läs fältets korta förklaring eller fäll ut **Läs mer**.
@@ -53,3 +53,11 @@ Klimat- och trafikstödet hämtar ledningslängder från senast använda stöd f
 ## Rätta inmatningsfel
 
 Om Beräkna hittar fel öppnas den del där första felet finns. Berörda fält får röd markering och feltext. Samma text visas när muspekaren hålls över fältet och är kopplad till fältet för skärmläsare. Flikar och åtgärder med fel märks med Fel. Markeringarna avser senaste försöket: rätta uppgifterna och välj Beräkna igen för en ny kontroll.
+
+## Välj bort det som inte ingår
+
+Små kryssrutor **Inte aktuellt** finns vid områdena Rening, Pumpning, Källaröversvämningar och Bräddning samt vid valbara enskilda poster. Bortvalda fält fälls ihop. Tidigare värden och stöddata bevaras och kommer tillbaka när du tar bort krysset.
+
+Ett bortvalt område i nuläget gäller hela jämförelsen. Om källaröversvämningar eller bräddning inte ingår, utelämnas även motsvarande minskning i samtliga åtgärder. Enskilda bortval i en åtgärd gäller bara den åtgärden. Analysförutsättningar och volym tillskottsvatten behöver fortfarande anges.
+
+Resultatet redovisar bortvalen under **Ingår inte i värderingen**, även i utskriftsunderlaget. De sparas med projektet och varje resultatkörning. Äldre projekt ändras inte automatiskt: tidigare nollor ligger kvar tills du väljer något annat.
