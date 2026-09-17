@@ -76,3 +76,7 @@ Beräkningsstöd ligger nu som en liten knapp intill berört fältnamn. Stängd 
 ## Automatisk fördelning av borttaget tillskottsvatten
 
 TypeScript och produktionsbygge godkända. Kontrollerat i osparat syntetiskt projekt i webbläsaren: 80 + 60 ger låst snabb regnpåverkan -40, röda fält och röd feltext som anger 140 % (högst 100 %). 80 + 10 ger rest 10 och felmarkeringen försvinner. Tömning med tangentbord ger saknad summa och uppmaning att ange båda andelarna. Readonly och aria-invalid kontrollerade. Ingen befintlig projektdata sparades eller ändrades av testet. Beräkningsmotorn oförändrad.
+
+## Tusentalsavgränsning i beloppsfält
+
+Beloppsfält med kr i enheten visar tusentalsmellanrum när de inte redigeras. Vid fokus visas värdet utan avgränsare. Formatering sker utan avrundning; befintlig parser accepterar mellanrum och decimalcomma. TypeScript och produktionsbygge godkända. Webbläsartest i osparat nytt projekt: 1500000,75 visas som 1 500 000,75, återfokus visar 1500000,75, inklistrat 2 345 678,90 visas som 2 345 678,9. Beräkningsvärden är fortsatt numeriska. Befintliga användarprojekt ändrades inte.

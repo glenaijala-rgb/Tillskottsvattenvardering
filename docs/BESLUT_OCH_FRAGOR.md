@@ -62,3 +62,7 @@ Enligt användarens önskemål sätts koldioxidvärdering 1 och Göteborgsexempe
 ## Automatisk snabb regnpåverkan
 
 Snabb regnpåverkan beräknas som 100 minus grundvattenpåverkan minus trög regnpåverkan och kan inte redigeras manuellt. Ogiltiga andelar markeras direkt, även före beräkningsförsök. Negativ rest visas för att tydliggöra felet; den klipps inte till noll. Befintliga projekt får samma regel i öppnat utkast; sparade revisioner ändras först vid användarens sparning. Inga nya frågor krävs.
+
+## Läsbara belopp
+
+Tusentalsavgränsning används för beloppsfält, även min/trolig/max och beräkningsstöd. Mellanrummen visas när fältet lämnas för att undvika att markören flyttas under inmatning. Decimaler bevaras utan avrundning. Årtal och slumpfrö formateras inte som belopp.

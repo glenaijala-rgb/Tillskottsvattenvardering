@@ -130,6 +130,7 @@ function NumberField({
   helpKey,
   readOnly = false,
   invalid = false,
+  grouped = !!unit?.includes("kr"),
 }: {
   label: string;
   value: number | null;
@@ -139,14 +140,19 @@ function NumberField({
   helpKey?: string;
   readOnly?: boolean;
   invalid?: boolean;
+  grouped?: boolean;
 }) {
-  const [text, setText] = useState(
-    value == null ? "" : String(value).replace(".", ","),
-  );
-  useEffect(
-    () => setText(value == null ? "" : String(value).replace(".", ",")),
-    [value],
-  );
+  const display = (v: number | null) => {
+    if (v == null) return "";
+    const [integer, fraction] = String(v).split(".");
+    const whole = grouped ? integer.replace(/\B(?=(\d{3})+(?!\d))/g, " ") : integer;
+    return whole + (fraction === undefined ? "" : "," + fraction);
+  };
+  const [focused, setFocused] = useState(false);
+  const [text, setText] = useState(() => display(value));
+  useEffect(() => {
+    if (!focused) setText(display(value));
+  }, [value, focused, grouped]);
   return (
     <FieldValidation path={errorPath}>
       <label className="field">
@@ -158,6 +164,10 @@ function NumberField({
           data-live-invalid={invalid ? "true" : undefined}
           inputMode="decimal"
           value={text}
+          onFocus={() => {
+            setFocused(true);
+            if (grouped) setText(text.replace(/\s/g, ""));
+          }}
           onChange={(e) => {
             setText(e.target.value);
             const v = parse(e.target.value);
@@ -165,9 +175,8 @@ function NumberField({
           }}
           onBlur={() => {
             const v = parse(text);
-            if (v !== null && !Number.isFinite(v)) {
-              setText(value == null ? "" : String(value));
-            }
+            setFocused(false);
+            setText(display(v !== null && !Number.isFinite(v) ? value : v));
           }}
         />
       </label>
@@ -311,6 +320,7 @@ function Parameters({
                           {(["low", "mode", "high"] as const).map((k) => (
                             <NumberField
                               key={k}
+                              grouped={unit.includes("kr")}
                               label={`${label}, ${{ low: "min", mode: "mest troligt", high: "max" }[k]}`}
                               value={p[k]}
                               onChange={(v) =>
