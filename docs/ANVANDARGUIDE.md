@@ -69,3 +69,7 @@ Nya projekt börjar med koldioxidvärderingen **1 kr/kg CO₂e**. Fält som har 
 Öppna **ⓘ Information** vid ett fält för fördjupning, källa och kommentar. Där visas också Göteborgsexemplets ursprungliga värden med enhet och cellrad i grundfilen samt om dina värden avviker. Exemplen är historiska och behöver bedömas för ditt område. Knappen för att kopiera exempelvärden har tagits bort.
 
 **Slumpfrö** och **Simuleringar** finns under **Beräkningsinställningar** i Nuläge. Inställningarna är normalt hopfällda och behöver oftast inte ändras. Andel mindre/större översvämmade byggnader finns under **Källaröversvämningar** och döljs tillsammans med området om det markeras Inte aktuellt.
+
+### Fördelning av borttaget tillskottsvatten
+
+Ange grundvattenpåverkan och trög regnpåverkan. Snabb regnpåverkan fylls automatiskt med resten upp till 100 %. De två inmatade andelarna får tillsammans vara högst 100 %. Vid fel blir andelsfälten och förklaringen röda; håll muspekaren över fälten för förklaringen. Markeringen försvinner när fördelningen är giltig.

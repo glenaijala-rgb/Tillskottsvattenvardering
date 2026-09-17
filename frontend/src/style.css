@@ -796,3 +796,17 @@ a {
   color: #64746a;
   border-bottom: 1px solid #e6ebe6;
 }
+
+.share-fields input[readonly] {
+  background: #edf2ed;
+  color: #43564b;
+  cursor: default;
+}
+.share-fields.shares-invalid input {
+  border: 1px solid #b42318;
+  background: #fff5f3;
+}
+.share-fields.shares-invalid {
+  border-left: 3px solid #b42318;
+  padding-left: 10px;
+}

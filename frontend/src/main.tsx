@@ -128,6 +128,8 @@ function NumberField({
   unit,
   errorPath,
   helpKey,
+  readOnly = false,
+  invalid = false,
 }: {
   label: string;
   value: number | null;
@@ -135,6 +137,8 @@ function NumberField({
   unit?: string;
   errorPath?: string;
   helpKey?: string;
+  readOnly?: boolean;
+  invalid?: boolean;
 }) {
   const [text, setText] = useState(
     value == null ? "" : String(value).replace(".", ","),
@@ -149,6 +153,9 @@ function NumberField({
         {label}
         {unit && <span className="unit">{unit}</span>}
         <input
+          readOnly={readOnly}
+          aria-invalid={invalid || undefined}
+          data-live-invalid={invalid ? "true" : undefined}
           inputMode="decimal"
           value={text}
           onChange={(e) => {
@@ -1545,6 +1552,26 @@ function App() {
       ),
     ),
   ]);
+  // Recompute the dependent share in drafts, including older saved projects.
+  // The original saved revision remains unchanged until the user saves.
+  useEffect(() => {
+    if (!project) return;
+    let changed = false;
+    const alternatives = project.alternatives.map((a) => {
+      const [ground, slow] = a.shares;
+      const fast =
+        typeof ground === "number" &&
+        Number.isFinite(ground) &&
+        typeof slow === "number" &&
+        Number.isFinite(slow)
+          ? Math.round((100 - ground - slow) * 1e10) / 1e10
+          : null;
+      if (a.shares[2] === fast) return a;
+      changed = true;
+      return { ...a, shares: [ground, slow, fast as number] };
+    });
+    if (changed) setProject({ ...project, alternatives });
+  }, [project]);
   const dirty =
     !!project && JSON.stringify(project) !== JSON.stringify(saved?.data);
   const refresh = async () => setProjects(await api("/projects"));
@@ -1579,7 +1606,8 @@ function App() {
               input.setAttribute("aria-describedby", error.id);
               input.setAttribute("title", error.textContent || "");
             } else {
-              input.removeAttribute("aria-invalid");
+              if (input.dataset.liveInvalid !== "true")
+                input.removeAttribute("aria-invalid");
               input.removeAttribute("aria-describedby");
               input.removeAttribute("title");
             }
@@ -1702,6 +1730,19 @@ function App() {
     );
   };
   const alt = project?.alternatives[altIndex];
+  const shareComplete =
+    !!alt &&
+    alt.shares.every((v) => typeof v === "number" && Number.isFinite(v));
+  const shareSum = shareComplete
+    ? alt!.shares.reduce((a, b) => a + b, 0)
+    : null;
+  const sharesInvalid =
+    !shareComplete ||
+    alt!.shares.some((v) => v < 0 || v > 100) ||
+    Math.abs(shareSum! - 100) > 1e-8;
+  const shareError = !shareComplete
+    ? "Ange både grundvattenpåverkan och trög regnpåverkan."
+    : "Andelarna måste ligga mellan 0 och 100 %. Grundvattenpåverkan och trög regnpåverkan får tillsammans vara högst 100 %.";
   return (
     <div className="app">
       <aside className="sidebar no-print">
@@ -2276,35 +2317,58 @@ function App() {
                         Andelarna gäller den volym som åtgärden tar bort, inte
                         allt vatten i nuläget.
                       </p>
-                      <div className="grid">
+                      <div
+                        className={
+                          "grid share-fields" +
+                          (sharesInvalid ? " shares-invalid" : "")
+                        }
+                        role="group"
+                        aria-label="Fördelning av borttaget tillskottsvatten"
+                        aria-describedby="share-total"
+                        title={sharesInvalid ? shareError : undefined}
+                      >
                         {[
                           "Grundvattenpåverkan",
                           "Trög regnpåverkan",
                           "Snabb regnpåverkan",
                         ].map((label, i) => (
                           <NumberField
-                            key={i}
-                            errorPath={"alternatives." + altIndex + ".shares"}
+                            key={alt.id + i}
                             label={label}
                             unit="%"
                             value={alt.shares[i]}
-                            onChange={(v) =>
-                              updateAlt(altIndex, {
-                                shares: alt.shares.map((s, j) =>
-                                  i === j ? (v as number) : s,
-                                ),
-                              })
-                            }
+                            readOnly={i === 2}
+                            invalid={sharesInvalid}
+                            onChange={(v) => {
+                              if (i === 2) return;
+                              const shares = [...alt.shares];
+                              shares[i] = v as number;
+                              shares[2] = (
+                                typeof shares[0] === "number" &&
+                                typeof shares[1] === "number"
+                                  ? Math.round(
+                                      (100 - shares[0] - shares[1]) * 1e10,
+                                    ) / 1e10
+                                  : null
+                              ) as number;
+                              updateAlt(altIndex, { shares });
+                            }}
                           />
                         ))}
                       </div>
-                      <p>
-                        Summa:{" "}
-                        {fmt(
-                          alt.shares.reduce((a, b) => a + b, 0),
-                          2,
-                        )}{" "}
-                        % (ska vara 100 %).
+                      <p className="muted">
+                        Snabb regnpåverkan beräknas automatiskt: 100 % minus
+                        grundvattenpåverkan och trög regnpåverkan.
+                      </p>
+                      <p
+                        id="share-total"
+                        className={sharesInvalid ? "field-error" : undefined}
+                        role="status"
+                      >
+                        {shareComplete && alt.shares[0] + alt.shares[1] > 100
+                          ? `Grundvattenpåverkan + trög regnpåverkan: ${fmt(alt.shares[0] + alt.shares[1], 2)} % (högst 100 %).`
+                          : `Summa: ${shareSum === null ? "–" : fmt(shareSum, 2)} % (ska vara 100 %).`}
+                        {sharesInvalid && <> {shareError}</>}
                       </p>
                     </section>
                     <Parameters

@@ -58,3 +58,7 @@ Kompakta val på områdesnivå i nuläget och för enskilda valbara poster i åt
 ## Startvärden och information – UI-beslut
 
 Enligt användarens önskemål sätts koldioxidvärdering 1 och Göteborgsexempel som startvärden i nya projekt. Sparade projekt lämnas oförändrade. Bakgrund, historiska exempelvärden, cellkälla och redigerbar källa/kommentar samlas under en gemensam informationskontroll. Syntetiska typfall behåller sina separata testvärden. Slumpfrö och antal simuleringar flyttas till utfällbara inställningar. Byggnadsandelar flyttas till området Källaröversvämningar. Inga nya frågor behöver avgöras.
+
+## Automatisk snabb regnpåverkan
+
+Snabb regnpåverkan beräknas som 100 minus grundvattenpåverkan minus trög regnpåverkan och kan inte redigeras manuellt. Ogiltiga andelar markeras direkt, även före beräkningsförsök. Negativ rest visas för att tydliggöra felet; den klipps inte till noll. Befintliga projekt får samma regel i öppnat utkast; sparade revisioner ändras först vid användarens sparning. Inga nya frågor krävs.

@@ -72,3 +72,7 @@ Kompletterat klimatstödets nya underlag med Göteborgsexemplets osäkerhetsinte
 ## Kompakta stödknappar
 
 Beräkningsstöd ligger nu som en liten knapp intill berört fältnamn. Stängd vy har ingen separat panel eller statusrad. Underlag och status visas först när knappen öppnas; meddelande om ändrade ledningslängder signaleras fortsatt med Uppdatera stöd. TypeScript och produktionsbygge godkända. Öppning/stängning av klimatstöd och kompakt placering vid klimat- och trafikfält visuellt kontrollerade i webbläsaren. Beräkningskod och sparade projekt är oförändrade.
+
+## Automatisk fördelning av borttaget tillskottsvatten
+
+TypeScript och produktionsbygge godkända. Kontrollerat i osparat syntetiskt projekt i webbläsaren: 80 + 60 ger låst snabb regnpåverkan -40, röda fält och röd feltext som anger 140 % (högst 100 %). 80 + 10 ger rest 10 och felmarkeringen försvinner. Tömning med tangentbord ger saknad summa och uppmaning att ange båda andelarna. Readonly och aria-invalid kontrollerade. Ingen befintlig projektdata sparades eller ändrades av testet. Beräkningsmotorn oförändrad.
