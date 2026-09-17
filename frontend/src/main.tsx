@@ -1781,8 +1781,27 @@ function App() {
     errors: string[];
   } | null>(null);
   const [reviewError, setReviewError] = useState("");
+  const [completion, setCompletion] = useState<{
+    snapshot: string;
+    fields: FieldIssue[];
+    errors: string[];
+  } | null>(null);
   const [serverIssues, setFieldIssues] = useState<FieldIssue[]>([]);
   const snapshot = JSON.stringify(project);
+  useEffect(() => {
+    if (!project) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      api("/validate", "POST", project).then(result => {
+        if (cancelled) return;
+        setCompletion({snapshot, ...result});
+        // Refresh already reported errors, without showing new errors while typing.
+        setFieldIssues(previous => result.fields.filter((issue: FieldIssue) =>
+          previous.some(old => old.path === issue.path)));
+      }).catch(() => { if (!cancelled) setCompletion(null); });
+    }, 350);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [snapshot]);
   useEffect(() => {
     if (tab !== "review" || !project) return;
     let cancelled = false;
@@ -1878,6 +1897,18 @@ function App() {
   }, [project]);
   const dirty =
     !!project && JSON.stringify(project) !== JSON.stringify(saved?.data);
+  const stepComplete = (key: string) => {
+    if (!project || completion?.snapshot !== snapshot) return false;
+    if (key === "results") return !!run?.result && !dirty && run.revision === saved?.revision;
+    if (key === "review") return review?.snapshot === snapshot && !review.errors.length;
+    // Unmapped validation errors must not produce a misleading completion mark.
+    if (completion.errors.some(error => !completion.fields.some(issue => issue.message === error))) return false;
+    const belongs = (path: string) => key === "project"
+      ? path === "name" || path.startsWith("analysis.")
+      : key === "baseline" ? /^(baseline|small_share)/.test(path)
+      : path.startsWith("alternatives");
+    return ![...completion.fields, ...effectIssues(project)].some(issue => belongs(issue.path));
+  };
   const refresh = async () => setProjects(await api("/projects"));
   useEffect(() => {
     Promise.all([api("/catalog"), api("/projects")])
@@ -2357,6 +2388,10 @@ function App() {
                 >
                   <span className="step-number">{index + 1}</span>
                   {label}
+                  {stepComplete(key) && (
+                    <span className="step-complete" role="img" aria-label="Klart"
+                      title={key === "results" ? "Resultatet motsvarar aktuella indata" : "Ifyllt och utan upptäckta indatafel. Källor och antaganden behöver fortfarande bedömas."}>✓</span>
+                  )}
                   {fieldIssues.some((e) =>
                     key === "project"
                       ? e.path === "name" || e.path.startsWith("analysis.")

@@ -71,6 +71,12 @@
   color: #fff;
   background: #205348;
 }
+.step-complete {
+  color: #527562;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 2px;
+}
 .guided-app .content {
   max-width: 1360px;
   padding: 32px 36px 60px;

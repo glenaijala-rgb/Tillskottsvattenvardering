@@ -14,6 +14,8 @@ Exemplet är testdata. Det är inte en värdering av ett verkligt område.
 
 ## Skapa ett eget projekt
 
+En diskret bock i stegfliken betyder att uppgifterna klarar programmets inmatningskontroller. Bocken uppdateras när du ändrar underlaget; den är inte ett godkännande av källor eller antaganden. Granska får en bock efter en felfri granskning och Resultat när den valda beräkningen motsvarar dina aktuella indata.
+
 1. Välj **Mina projekt → Nytt projekt**. Ange namn, område och analysförutsättningar i steg **Projekt**.
 2. Fyll i **Nuläge**, en grupp i taget. Använd delmenyn eller **Nästa**. Välj **Inte aktuellt** vid områdesrubriken eller posten om den inte ingår. Tomma aktiva fält betyder att en uppgift saknas.
 3. Ett fast värde anges bara i **Mest troligt**. Välj **Ange ett osäkerhetsintervall** för att visa **Min** och **Max**. Befintliga gränser visas automatiskt. För att återgå till ett fast värde behöver du själv tömma både min och max; att byta vy raderar inget.
