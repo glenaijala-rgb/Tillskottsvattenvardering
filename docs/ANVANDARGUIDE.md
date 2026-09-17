@@ -18,7 +18,7 @@ Exemplet är testdata. Det är inte en värdering av ett verkligt område.
 2. Fyll i **Nuläge**. Välj **Inte aktuellt** vid områdesrubriken eller posten om den inte ingår. Tomma aktiva fält betyder att en uppgift saknas.
 3. Ett säkert värde anges bara i **Mest troligt**. För ett osäkert värde anges även **Min** och **Max**.
 4. Fyll i **Åtgärder**. Aktivera de alternativ du vill jämföra.
-5. Välj **Beräkna med stöd** vid det aktuella fältet. Stödvärden förs över först när du väljer **Använd**. Läs fältets korta förklaring eller öppna **ⓘ Information**.
+5. Välj **Beräkningsstöd** vid det aktuella fältet. Stödvärden förs över först när du väljer **Använd**. Läs fältets korta förklaring eller öppna **ⓘ Information**.
 6. Välj **Spara projekt** när du vill spara arbetet, även om det inte är färdigt.
 7. Välj **Beräkna** när underlaget är komplett. Saknade eller felaktiga uppgifter visas i ett meddelande.
 
@@ -46,7 +46,7 @@ Appen är en första lokal version. Grundfilen innehåller fel som har dokumente
 
 Reningsverksstödet finns vid grundvattenpåverkan under Rening och fyller i alla tre marginalvärden. Översvämningsstödet finns vid antal källaröversvämningar. Klimat- och trafikstöden finns vid respektive fält i den valda åtgärden.
 
-Efter att du har använt ett stöd öppnar **Visa eller ändra underlag** de sparade indata igen. Ett manuellt ändrat resultat markeras som eget värde. Tidigare stöddata finns kvar. Ändringar i stödets formulär används först efter **Beräkna stödvärde** och **Använd**; spara sedan projektet. Stänger du stödet eller byter flik innan dess lämnas utkastet bort.
+Efter att du har använt ett stöd öppnar **Beräkningsstöd** de sparade indata igen. Ett manuellt ändrat resultat markeras som eget värde. Tidigare stöddata finns kvar. Ändringar i stödets formulär används först efter **Beräkna stödvärde** och **Använd**; spara sedan projektet. Stänger du stödet eller byter flik innan dess lämnas utkastet bort.
 
 Klimat- och trafikstödet hämtar ledningslängder från senast använda stöd för samma åtgärd. Ändrade längder behöver beräknas och användas i båda stöden. En uppmaning visas vid ett tidigare beräknat värde vars längder skiljer sig. Underlag delas inte mellan olika åtgärder.
 

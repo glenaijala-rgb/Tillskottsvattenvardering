@@ -207,6 +207,7 @@ function Parameters({
                 .filter((x) => x[3] === group)
                 .map(([key, label, unit]) => {
                   const p = values[key];
+                  const fieldSupport = support?.(key);
                   const inherited =
                     (key === "flood_reduction" &&
                       excludedGroups.includes("Källaröversvämningar")) ||
@@ -253,9 +254,15 @@ function Parameters({
                       path={errorScope ? errorScope + "." + key : undefined}
                     >
                       <div className="parameter">
+                        {fieldSupport && (
+                          <div className="supported-heading">
+                            <strong>{label}</strong>
+                            {fieldSupport}
+                          </div>
+                        )}
                         <div className="parameter-row">
                           <div>
-                            <strong>{label}</strong>
+                            {!fieldSupport && <strong>{label}</strong>}
                             <small>{unit}</small>
                             {choice}
                           </div>
@@ -295,7 +302,6 @@ function Parameters({
                             slutligt granskad.
                           </p>
                         )}
-                        {support?.(key)}
                         <details className="field-info">
                           <summary aria-label={"Information om " + label}>
                             <span className="info-icon" aria-hidden="true">
@@ -963,31 +969,50 @@ function FieldSupport({
     );
   return (
     <div className="inline-support">
-      <p className="muted">
-        {linked ? "Beräknat med stöd" : "Eget värde"}
-        {saved && !linked ? " · tidigare beräkningsunderlag finns sparat" : ""}
-      </p>
-      <button aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button
+        className="support-toggle"
+        aria-label={
+          (open ? "Stäng stöd för " : "Öppna stöd för ") +
+          helperDefinitions[kind].name
+        }
+        aria-expanded={open}
+        title={
+          outdated && linked
+            ? "Ledningslängder har ändrats. Uppdatera underlaget."
+            : saved
+              ? "Visa eller ändra sparat beräkningsunderlag"
+              : "Beräkna värdet med stöd"
+        }
+        onClick={() => setOpen(!open)}
+      >
         {open
-          ? "Stäng beräkningsstöd"
-          : saved
-            ? "Visa eller ändra underlag"
-            : "Beräkna med stöd"}
+          ? "Stäng stöd"
+          : outdated && linked
+            ? "Uppdatera stöd"
+            : "Beräkningsstöd"}
       </button>
-      {outdated && linked && (
-        <p className="notice">
-          Ledningslängder har ändrats i det andra stödet. Öppna underlaget,
-          beräkna och använd det på nytt för att uppdatera detta värde.
-        </p>
-      )}
       {open && (
-        <Helpers
-          project={project}
-          kind={kind}
-          target={target}
-          notify={notify}
-          onApply={onApply}
-        />
+        <div className="support-panel">
+          <p className="muted">
+            {linked ? "Beräknat med stöd" : "Eget värde"}
+            {saved && !linked
+              ? " · tidigare beräkningsunderlag finns sparat"
+              : ""}
+          </p>
+          {outdated && linked && (
+            <p className="notice">
+              Ledningslängder har ändrats i det andra stödet. Beräkna och använd
+              underlaget på nytt för att uppdatera detta värde.
+            </p>
+          )}
+          <Helpers
+            project={project}
+            kind={kind}
+            target={target}
+            notify={notify}
+            onApply={onApply}
+          />
+        </div>
       )}
     </div>
   );
@@ -2079,8 +2104,10 @@ function App() {
                             <h3>Fördelning av översvämmade byggnader</h3>
                             <p>
                               Andelen avser mindre byggnader, exempelvis småhus.
-                              Startvärdet 100 % är ett redigerbart antagande i programmet, inte ett Göteborgsexempel. Anpassa fördelningen till området.
-                              Resterande andel räknas som större byggnader.
+                              Startvärdet 100 % är ett redigerbart antagande i
+                              programmet, inte ett Göteborgsexempel. Anpassa
+                              fördelningen till området. Resterande andel räknas
+                              som större byggnader.
                             </p>
                             <div className="grid">
                               {" "}

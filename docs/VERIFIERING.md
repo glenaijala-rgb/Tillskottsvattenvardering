@@ -68,3 +68,7 @@ Numrerade punkthänvisningar har tagits bort från de 27 fältens hjälptexter. 
 ## Klimatfaktorer från grundfilen
 
 Kompletterat klimatstödets nya underlag med Göteborgsexemplets osäkerhetsintervall: schaktfritt 1/10/217 och schakt 33/104/855 kg CO₂e/m (min/trolig/max). Källa verifierad i extraherade originalceller Beräkningshjälp!H48:J49, med förklaring i Vägledning!B42. Tidigare sparade stödvärden ersätts inte. En utfällbar informationsruta visar värden, källceller, tolkning och historisk karaktär. TypeScript och produktionsbygge godkända; webbläsarkontroll bekräftade samtliga sex startvärden och förvalt osäkerhetsintervall. Beräkningsmotorn är oförändrad.
+
+## Kompakta stödknappar
+
+Beräkningsstöd ligger nu som en liten knapp intill berört fältnamn. Stängd vy har ingen separat panel eller statusrad. Underlag och status visas först när knappen öppnas; meddelande om ändrade ledningslängder signaleras fortsatt med Uppdatera stöd. TypeScript och produktionsbygge godkända. Öppning/stängning av klimatstöd och kompakt placering vid klimat- och trafikfält visuellt kontrollerade i webbläsaren. Beräkningskod och sparade projekt är oförändrade.
