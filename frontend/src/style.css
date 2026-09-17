@@ -683,3 +683,26 @@ a {
 .inline-support .parameter {
   min-width: 0;
 }
+.invalid-field {
+  border-left: 3px solid #b42318;
+  padding-left: 10px;
+  min-width: 0;
+}
+.validated-field {
+  min-width: 0;
+}
+.invalid-field input[aria-invalid="true"],
+.invalid-field select[aria-invalid="true"] {
+  border-color: #b42318;
+  background: #fff5f3;
+}
+.field-error {
+  color: #9c231b;
+  font-size: 0.9rem;
+  margin: 6px 0 14px;
+}
+.validation-summary {
+  padding: 12px 24px;
+  color: #9c231b;
+  background: #fff5f3;
+}

@@ -50,7 +50,7 @@ def create_app(database=None):
 
     @app.exception_handler(InputError)
     async def invalid(request, e):
-        return JSONResponse({"detail": e.errors}, 422)
+        return JSONResponse({"detail": e.errors, "fields": e.fields}, 422)
 
     @app.exception_handler(KeyError)
     async def missing(request, e):
@@ -66,7 +66,7 @@ def create_app(database=None):
             or not isinstance(data.get("name"), str)
             or not data["name"].strip()
         ):
-            raise InputError(["Ange projektnamn."])
+            raise InputError(["Ange projektnamn."], [{"path": "name", "message": "Ange projektnamn."}])
         if len(json.dumps(data)) > 2_000_000:
             raise InputError(["Projektet är för stort."])
         if (

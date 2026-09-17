@@ -48,3 +48,7 @@ Alla arbetsbeslut och sparade frågor finns i [Beslut och frågor](BESLUT_OCH_FR
 ## Kontroll av integrerat UI-stöd 2026-09-17
 
 TypeScript-kontroll och produktionsbygge godkända. Verifierat i separat webbläsarflik med syntetiskt projekt: fyra huvudflikar, fältförklaringar, klimattypfall 10 m × 2 kg/m = 20 kg (80 kr), överföring till rätt åtgärd, återanvändning av längd i trafikstöd, uppmaning när längden ändras, åtgärd 2 opåverkad, översvämningsstöd vid nulägesfält, SQL-sparning och återöppning av underlag efter omladdning samt markering av manuellt ändrat värde. Layouten har inspekterats visuellt. Testprojektet arkiverades; befintliga användarprojekt ändrades inte. Beräkningsmotorn är oförändrad; tidigare 43 motortester har inte körts om för denna UI-ändring.
+
+## Fältkopplade valideringsfel
+
+API:t returnerar läsbara fel och stabila fältsökvägar, även för alternativ med samma namn. Två nya tester verifierar koppling till nuläge, aktiva åtgärder, analysår, ränta och flödesandelar. Befintliga 43 tester samt de två nya testerna passerade fördelat på två slutliga testurval (38 befintliga motor/källtester och 7 API/fältkopplingstester). TypeScript och produktionsbygge godkända. Webbläsarkontroll med tomt syntetiskt projekt gav 28 markerade fält, korrekt flikmarkering, synlig feltext, title och aria-invalid. Separat kontroll av negativ ränta och efterföljande rättning genomförd. Felmarkeringar gäller senaste beräkningsförsöket tills ny kontroll görs. Befintliga användarprojekt har inte ändrats.

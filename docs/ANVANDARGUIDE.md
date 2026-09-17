@@ -49,3 +49,7 @@ Reningsverksstödet finns vid grundvattenpåverkan under Rening och fyller i all
 Efter att du har använt ett stöd öppnar **Visa eller ändra underlag** de sparade indata igen. Ett manuellt ändrat resultat markeras som eget värde. Tidigare stöddata finns kvar. Ändringar i stödets formulär används först efter **Beräkna stödvärde** och **Använd**; spara sedan projektet. Stänger du stödet eller byter flik innan dess lämnas utkastet bort.
 
 Klimat- och trafikstödet hämtar ledningslängder från senast använda stöd för samma åtgärd. Ändrade längder behöver beräknas och användas i båda stöden. En uppmaning visas vid ett tidigare beräknat värde vars längder skiljer sig. Underlag delas inte mellan olika åtgärder.
+
+## Rätta inmatningsfel
+
+Om Beräkna hittar fel öppnas den del där första felet finns. Berörda fält får röd markering och feltext. Samma text visas när muspekaren hålls över fältet och är kopplad till fältet för skärmläsare. Flikar och åtgärder med fel märks med Fel. Markeringarna avser senaste försöket: rätta uppgifterna och välj Beräkna igen för en ny kontroll.

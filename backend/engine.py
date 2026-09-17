@@ -10,9 +10,27 @@ VERSION = "1.0.0"
 
 
 class InputError(ValueError):
-    def __init__(self, errors):
-        self.errors = errors
+    def __init__(self, errors, fields=None):
+        self.errors = list(errors)
+        self.fields = fields if fields is not None else getattr(errors, "fields", [])
         super().__init__("; ".join(errors))
+
+
+class ValidationErrors(list):
+    """Keep readable errors and stable field paths together (independent of names)."""
+    def __init__(self):
+        super().__init__()
+        self.paths = []
+        self.fields = []
+
+    def append(self, message):
+        super().append(message)
+        for path in self.paths:
+            self.fields.append({"path": path, "message": message})
+
+    def extend(self, messages):
+        for message in messages:
+            self.append(message)
 
 
 def finite(v):
@@ -24,7 +42,8 @@ def bounds(p):
 
 
 def validate(p):
-    errors = []
+    errors = ValidationErrors()
+    errors.paths = ["name"]
     if not isinstance(p, dict):
         raise InputError(["Projektet måste vara ett objekt."])
     if not isinstance(p.get("name"), str) or not p["name"].strip():
@@ -36,30 +55,39 @@ def validate(p):
         ("seed", "Slumpfrö"),
         ("iterations", "Antal simuleringar"),
     ]:
+        errors.paths = ["analysis." + k]
         if type(a.get(k)) is not int:
             errors.append(f"{label}: ange ett heltal.")
+    errors.paths = ["analysis.start", "analysis.end"]
     if all(type(a.get(k)) is int for k in ("start", "end")):
         if not (
             1900 <= a["start"] < a["end"] <= 2300 and 1 <= a["end"] - a["start"] <= 100
         ):
             errors.append("Analysen måste omfatta 1–100 år, inom 1900–2300.")
+    errors.paths = ["analysis.seed"]
     if type(a.get("seed")) is int and not 0 <= a["seed"] < 2**32:
         errors.append("Slumpfrö måste vara 0–4294967295.")
+    errors.paths = ["analysis.iterations"]
     if a.get("iterations") not in (1000, 10000):
         errors.append("Välj 1 000 eller 10 000 simuleringar.")
     for k, label in [("rate", "Diskonteringsränta"), ("carbon", "Koldioxidvärdering")]:
+        errors.paths = ["analysis." + k]
         if not finite(a.get(k)) or a[k] < 0 or a[k] > 1e9:
             errors.append(f"{label}: ange ett giltigt icke-negativt värde.")
+    errors.paths = ["analysis.rate"]
     if finite(a.get("rate")) and a["rate"] > 100:
         errors.append("Diskonteringsränta får vara högst 100 %.")
+    errors.paths = ["small_share"]
     if not finite(p.get("small_share")) or not 0 <= p["small_share"] <= 100:
         errors.append("Andel mindre byggnader måste vara 0–100 %.")
 
-    def group(values, catalog, prefix):
+    def group(values, catalog, prefix, path):
+        errors.paths = [path]
         if not isinstance(values, dict):
             errors.append(prefix + ": indata saknas.")
             return
         for key, label, *_ in catalog:
+            errors.paths = [path + "." + key]
             item = values.get(key, {})
             if not isinstance(item, dict):
                 errors.append(f"{prefix} / {label}: ogiltigt fält.")
@@ -103,7 +131,8 @@ def validate(p):
                     except InputError as e:
                         errors.extend(e.errors)
 
-    group(p.get("baseline"), BASE, "Nuläge")
+    group(p.get("baseline"), BASE, "Nuläge", "baseline")
+    errors.paths = ["alternatives"]
     alts = p.get("alternatives", [])
     if not isinstance(alts, list) or not 1 <= len(alts) <= 3:
         raise InputError(errors + ["Projektet ska ha 1–3 alternativ."])
@@ -117,10 +146,13 @@ def validate(p):
     if not active:
         errors.append("Aktivera minst en åtgärd.")
     for alt in active:
+        path = "alternatives." + str(alts.index(alt))
+        errors.paths = [path + ".name"]
         name = alt.get("name") or "Namnlös åtgärd"
         if not alt.get("name"):
             errors.append("Namn på aktiv åtgärd saknas.")
-        group(alt.get("params"), ALT, name)
+        group(alt.get("params"), ALT, name, path + ".params")
+        errors.paths = [path + ".start", path + ".end"]
         if any(type(alt.get(k)) is not int for k in ("start", "end")):
             errors.append(f"{name}: genomförandeår måste vara heltal.")
         elif (
@@ -128,6 +160,7 @@ def validate(p):
             and not a["start"] <= alt["start"] <= alt["end"] <= a["end"]
         ):
             errors.append(f"{name}: byggåren måste ligga inom analysen.")
+        errors.paths = [path + ".shares"]
         shares = alt.get("shares", [])
         if (
             not isinstance(shares, list)
@@ -144,6 +177,7 @@ def validate(p):
                 ("overflow", "overflow_reduction"),
             ]:
                 # Safe over the complete support for independent distributions. No clipping.
+                errors.paths = ["alternatives." + str(alts.index(alt)) + ".params." + reduction, "baseline." + key]
                 if bounds(alt["params"][reduction])[1] > bounds(p["baseline"][key])[0]:
                     errors.append(
                         f"{alt['name']}: maximal minskning för {dict((x[0],x[1]) for x in BASE)[key]} överstiger nulägets minsta värde. Justera intervallen."
