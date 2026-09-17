@@ -382,8 +382,8 @@ const helperDefinitions: Record<
     fields: [
       ["trenchless_length", "Längd schaktfritt", "m", 0],
       ["trench_length", "Längd med schakt", "m", 0],
-      ["trenchless_factor", "Utsläpp schaktfritt", "kg CO₂e/m", 0],
-      ["trench_factor", "Utsläpp med schakt", "kg CO₂e/m", 0],
+      ["trenchless_factor", "Utsläpp schaktfritt", "kg CO₂e/m", 10],
+      ["trench_factor", "Utsläpp med schakt", "kg CO₂e/m", 104],
     ],
   },
   traffic: {
@@ -440,6 +440,22 @@ function Helpers({
               helperDefinitions[kind].fields.map((x) => [x[0], x[3]]),
             )),
     );
+    if (kind === "climate" && !previous) {
+      initial.trenchless_factor = {
+        low: 1,
+        mode: 10,
+        high: 217,
+        source: "Göteborgsexempel, TSV KNA.xlsb, Beräkningshjälp!H48:J48",
+        note: "Historiskt exempel; bedöm lokal relevans.",
+      };
+      initial.trench_factor = {
+        low: 33,
+        mode: 104,
+        high: 855,
+        source: "Göteborgsexempel, TSV KNA.xlsb, Beräkningshjälp!H49:J49",
+        note: "Historiskt exempel; bedöm lokal relevans.",
+      };
+    }
     if (["climate", "traffic"].includes(kind)) {
       const shared = [...project.helpers]
         .reverse()
@@ -508,6 +524,58 @@ function Helpers({
             beräknar ett förväntat antal per år från riskkurvan. Modellen antar
             konstant antal bortom 100-årshändelsen.
           </p>
+        )}
+        {kind === "climate" && (
+          <details className="field-info">
+            <summary aria-label="Information om klimatfaktorer">
+              <span className="info-icon" aria-hidden="true">
+                i
+              </span>{" "}
+              Information om utsläpp per meter
+            </summary>
+            <p>
+              Grundfilens Göteborgsexempel används som startvärden i nya
+              klimatunderlag. Sparade underlag behåller sina egna värden.
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Arbetssätt</th>
+                  <th>Min</th>
+                  <th>Mest troligt</th>
+                  <th>Max</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Schaktfritt</th>
+                  <td>1</td>
+                  <td>10</td>
+                  <td>217</td>
+                </tr>
+                <tr>
+                  <th>Med schakt</th>
+                  <td>33</td>
+                  <td>104</td>
+                  <td>855</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              Enhet: kg CO₂e/m. Källa: TSV KNA.xlsb, Beräkningshjälp!H48:J49.
+              Vägledningen beskriver dessa som schabloner från Göteborg för
+              schaktfritt arbete (exempelvis infodring) och arbete med schakt
+              (exempelvis separering).
+            </p>
+            <p>
+              Värdena är historiska exempel och behöver bedömas för projektets
+              material, dimensioner och arbetsmetod. De är utsläpp, inte kronor.
+              Stödet multiplicerar längden med utsläppet per meter; kostnaden
+              beräknas med projektets koldioxidvärdering. Osäkerhetsintervallet
+              är förvalt. Om du väljer fasta värden används bara det mest
+              troliga värdet.
+            </p>
+          </details>
         )}
         <div className="grid">
           {!uncertain &&

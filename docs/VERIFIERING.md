@@ -64,3 +64,7 @@ API:t returnerar läsbara fel och stabila fältsökvägar, även för alternativ
 ## Självständiga hjälptexter
 
 Numrerade punkthänvisningar har tagits bort från de 27 fältens hjälptexter. Förklaringarna har kompletterats från tidigare extraherad Vägledning i TSV KNA.xlsb, särskilt för ARV, klimat, trafik, översvämningar och bräddning. Metodbegränsningar och historisk karaktär är bevarade. TypeScript-kontroll och produktionsbygge godkända. Kontroll av hjälptextkällan visar inga kvarvarande hänvisningar till numrerade punkter. Ingen beräkningskod eller projektdata ändrad.
+
+## Klimatfaktorer från grundfilen
+
+Kompletterat klimatstödets nya underlag med Göteborgsexemplets osäkerhetsintervall: schaktfritt 1/10/217 och schakt 33/104/855 kg CO₂e/m (min/trolig/max). Källa verifierad i extraherade originalceller Beräkningshjälp!H48:J49, med förklaring i Vägledning!B42. Tidigare sparade stödvärden ersätts inte. En utfällbar informationsruta visar värden, källceller, tolkning och historisk karaktär. TypeScript och produktionsbygge godkända; webbläsarkontroll bekräftade samtliga sex startvärden och förvalt osäkerhetsintervall. Beräkningsmotorn är oförändrad.
